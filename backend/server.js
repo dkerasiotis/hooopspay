@@ -69,6 +69,9 @@ db.exec(`
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     color TEXT NOT NULL DEFAULT '#4d9fff',
+    rate REAL NOT NULL DEFAULT 10,
+    t_rate REAL NOT NULL DEFAULT 8,
+    c_rate REAL NOT NULL DEFAULT 2,
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -109,6 +112,14 @@ db.exec(`
   );
 `);
 
+// Migration: add rate columns to teams if missing
+try { db.prepare("SELECT rate FROM teams LIMIT 1").get(); }
+catch(e) {
+  db.exec("ALTER TABLE teams ADD COLUMN rate REAL NOT NULL DEFAULT 10");
+  db.exec("ALTER TABLE teams ADD COLUMN t_rate REAL NOT NULL DEFAULT 8");
+  db.exec("ALTER TABLE teams ADD COLUMN c_rate REAL NOT NULL DEFAULT 2");
+}
+
 // Seed default teams if empty
 const teamCount = db.prepare('SELECT COUNT(*) as c FROM teams').get();
 if (teamCount.c === 0) {
@@ -127,11 +138,22 @@ app.get('/api/teams', (req, res) => {
 });
 
 app.post('/api/teams', (req, res) => {
-  const { id, name, color } = req.body;
+  const { id, name, color, rate, t_rate, c_rate } = req.body;
   if (!name) return res.status(400).json({ error: 'Απαιτείται όνομα ομάδας' });
   const teamId = id || 't' + Date.now();
-  db.prepare('INSERT INTO teams (id, name, color) VALUES (?, ?, ?)').run(teamId, name, color || '#4d9fff');
-  res.json({ id: teamId, name, color });
+  const r = rate != null ? rate : 10;
+  const tr = t_rate != null ? t_rate : 8;
+  const cr = c_rate != null ? c_rate : 2;
+  db.prepare('INSERT INTO teams (id, name, color, rate, t_rate, c_rate) VALUES (?, ?, ?, ?, ?, ?)').run(teamId, name, color || '#4d9fff', r, tr, cr);
+  res.json({ id: teamId, name, color, rate: r, t_rate: tr, c_rate: cr });
+});
+
+app.put('/api/teams/:id', (req, res) => {
+  const { name, color, rate, t_rate, c_rate } = req.body;
+  if (!name) return res.status(400).json({ error: 'Απαιτείται όνομα ομάδας' });
+  db.prepare('UPDATE teams SET name=?, color=?, rate=?, t_rate=?, c_rate=? WHERE id=?')
+    .run(name, color || '#4d9fff', rate != null ? rate : 10, t_rate != null ? t_rate : 8, c_rate != null ? c_rate : 2, req.params.id);
+  res.json({ ok: true });
 });
 
 app.delete('/api/teams/:id', (req, res) => {
@@ -288,8 +310,8 @@ app.post('/api/restore', (req, res) => {
     db.prepare('DELETE FROM teams').run();
     db.prepare('DELETE FROM teacher_payments').run();
 
-    const insTeam = db.prepare('INSERT OR IGNORE INTO teams (id, name, color) VALUES (?, ?, ?)');
-    teams.forEach(t => insTeam.run(t.id, t.name, t.color || '#4d9fff'));
+    const insTeam = db.prepare('INSERT OR IGNORE INTO teams (id, name, color, rate, t_rate, c_rate) VALUES (?, ?, ?, ?, ?, ?)');
+    teams.forEach(t => insTeam.run(t.id, t.name, t.color || '#4d9fff', t.rate != null ? t.rate : 10, t.t_rate != null ? t.t_rate : 8, t.c_rate != null ? t.c_rate : 2));
 
     const insStu = db.prepare(`INSERT OR IGNORE INTO students (id, fname, lname, phone, email, team_id, date, notes, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     students.forEach(s => insStu.run(s.id, s.fname, s.lname, s.phone || '', s.email || '', s.teamId || s.team_id || null, s.date || '', s.notes || '', s.active === false ? 0 : 1));

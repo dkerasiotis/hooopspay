@@ -492,13 +492,18 @@ tr:hover td{background:rgba(255,107,0,0.03);}
             <div class="form-group"><label>Όνομα Ομάδας *</label><input type="text" id="team-name" placeholder="π.χ. Παιδικό Τμήμα"></div>
             <div class="form-group"><label>Χρώμα</label><input type="color" id="team-color" value="#4d9fff" style="width:100%;height:38px;padding:2px 4px;cursor:pointer;"></div>
           </div>
+          <div class="form-row" style="margin-top:0.5rem">
+            <div class="form-group"><label>Συνδρομή (€)</label><input type="number" id="team-rate" value="10" min="0" step="0.5"></div>
+            <div class="form-group"><label>Αμοιβή Δασκάλου (€)</label><input type="number" id="team-trate" value="8" min="0" step="0.5"></div>
+            <div class="form-group"><label>Έσοδα Συλλόγου (€)</label><input type="number" id="team-crate" value="2" min="0" step="0.5"></div>
+          </div>
           <button class="btn btn-primary" onclick="addTeam()">Αποθήκευση Ομάδας</button>
         </div>
       </div>
       <div class="card">
         <div class="card-header"><div class="card-title">Ομάδες</div></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Χρώμα</th><th>Όνομα</th><th>Μαθητές</th><th>Ενέργειες</th></tr></thead>
+          <thead><tr><th>Χρώμα</th><th>Όνομα</th><th>Μαθητές</th><th>Συνδρομή</th><th>Δάσκαλος</th><th>Σύλλογος</th><th>Ενέργειες</th></tr></thead>
           <tbody id="teams-body"></tbody>
         </table></div>
       </div>
@@ -616,7 +621,12 @@ tr:hover td{background:rgba(255,107,0,0.03);}
 // ═══════════════════════════════════
 // CONFIG & API
 // ═══════════════════════════════════
-const RATE=10, T_RATE=8, C_RATE=2;
+// Default rates (used as fallback if team has no rates)
+const DEF_RATE=10, DEF_T_RATE=8, DEF_C_RATE=2;
+// Per-student rate helpers (based on team)
+function sRate(s){ const t=getTeam(studentTeamId(s)); return t?.rate!=null?t.rate:DEF_RATE; }
+function sTRate(s){ const t=getTeam(studentTeamId(s)); return t?.t_rate!=null?t.t_rate:DEF_T_RATE; }
+function sCRate(s){ const t=getTeam(studentTeamId(s)); return t?.c_rate!=null?t.c_rate:DEF_C_RATE; }
 const MONTHS_EL=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
 const MONTHS_SHORT=['Ιαν','Φεβ','Μαρ','Απρ','Μαϊ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
 
@@ -757,10 +767,16 @@ async function addTeam(){
   const name=document.getElementById('team-name').value.trim();
   if(!name){toast('Συμπλήρωσε όνομα','⚠️');return;}
   const color=document.getElementById('team-color').value;
+  const rate=parseFloat(document.getElementById('team-rate').value)||10;
+  const t_rate=parseFloat(document.getElementById('team-trate').value)||8;
+  const c_rate=parseFloat(document.getElementById('team-crate').value)||2;
   try{
-    const t = await api('POST','/teams',{name,color});
+    const t = await api('POST','/teams',{name,color,rate,t_rate,c_rate});
     cache.teams.push(t);
     document.getElementById('team-name').value='';
+    document.getElementById('team-rate').value='10';
+    document.getElementById('team-trate').value='8';
+    document.getElementById('team-crate').value='2';
     renderTeams();updateGlobalTeamSel();populateTeamSelects();syncTeamFilters();
     toast(`Ομάδα "${name}" προστέθηκε!`);
   }catch(e){toast(e.message,'❌');}
@@ -775,16 +791,38 @@ async function deleteTeam(id){
 }
 function renderTeams(){
   const tbody=document.getElementById('teams-body');
-  if(!cache.teams.length){tbody.innerHTML=`<tr><td colspan="4"><div class="empty-state"><div class="ei">🏆</div><p>Δεν υπάρχουν ομάδες</p></div></td></tr>`;return;}
+  if(!cache.teams.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="ei">🏆</div><p>Δεν υπάρχουν ομάδες</p></div></td></tr>`;return;}
   tbody.innerHTML=cache.teams.map(t=>{
     const count=cache.students.filter(s=>s.team_id===t.id||s.teamId===t.id).length;
+    const r=t.rate!=null?t.rate:10, tr=t.t_rate!=null?t.t_rate:8, cr=t.c_rate!=null?t.c_rate:2;
     return `<tr>
       <td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${t.color}"></span></td>
       <td><strong>${t.name}</strong></td>
       <td>${count} μαθητές</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteTeam('${t.id}')">🗑</button></td>
+      <td style="font-family:'JetBrains Mono'">${r}€</td>
+      <td style="font-family:'JetBrains Mono';color:var(--orange)">${tr}€</td>
+      <td style="font-family:'JetBrains Mono';color:var(--blue)">${cr}€</td>
+      <td><div style="display:flex;gap:0.35rem">
+        <button class="btn btn-ghost btn-sm" onclick="editTeamRates('${t.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTeam('${t.id}')">🗑</button>
+      </div></td>
     </tr>`;
   }).join('');
+}
+
+async function editTeamRates(id){
+  const t=cache.teams.find(x=>x.id===id); if(!t)return;
+  const r=t.rate!=null?t.rate:10, tr=t.t_rate!=null?t.t_rate:8, cr=t.c_rate!=null?t.c_rate:2;
+  const name=prompt('Όνομα Ομάδας:',t.name); if(!name)return;
+  const rate=parseFloat(prompt('Συνδρομή (€):',r)); if(isNaN(rate))return;
+  const t_rate=parseFloat(prompt('Αμοιβή Δασκάλου (€):',tr)); if(isNaN(t_rate))return;
+  const c_rate=parseFloat(prompt('Έσοδα Συλλόγου (€):',cr)); if(isNaN(c_rate))return;
+  try{
+    await api('PUT',`/teams/${id}`,{name,color:t.color,rate,t_rate,c_rate});
+    Object.assign(t,{name,rate,t_rate,c_rate});
+    renderTeams();updateGlobalTeamSel();syncTeamFilters();
+    toast('Ομάδα ενημερώθηκε!');
+  }catch(e){toast(e.message,'❌');}
 }
 
 // ═══════════════════════════════════
@@ -895,7 +933,7 @@ function renderStudents(){
     const isActive=s.active!==false;
     let total=0,lastPay='—';
     Object.entries(cache.payments).sort((a,b)=>b[0].localeCompare(a[0])).forEach(([mk,mo])=>{
-      if(mo[s.id]?.paid){total+=RATE;if(lastPay==='—')lastPay=mLabel(mk);}
+      if(mo[s.id]?.paid){total+=sRate(s);if(lastPay==='—')lastPay=mLabel(mk);}
     });
     return `<tr style="${isActive?'':'opacity:0.55'}">
       <td>
@@ -967,14 +1005,17 @@ async function renderPayments(){
     return true;
   });
 
-  const paidCount=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, activePayMonth)&&mo[s.id]?.paid&&(gtf==='all'||studentTeamId(s)===gtf)).length;
+  const paidStudents=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, activePayMonth)&&mo[s.id]?.paid&&(gtf==='all'||studentTeamId(s)===gtf));
+  const paidCount=paidStudents.length;
+  const sumT=paidStudents.reduce((a,s)=>a+sTRate(s),0);
+  const sumC=paidStudents.reduce((a,s)=>a+sCRate(s),0);
 
   document.getElementById('pay-card-title').textContent=`Κατάσταση — ${mLabel(activePayMonth)}`;
   document.getElementById('pay-count-info').textContent=`${list.filter(s=>mo[s.id]?.paid).length}/${list.length} πληρωμένοι`;
   document.getElementById('pay-summary').innerHTML=`
     <div class="summary-cell"><label>Πληρωμένοι</label><span style="color:var(--green)">${paidCount}</span></div>
-    <div class="summary-cell"><label>Αμοιβή Δασκάλου</label><span style="color:var(--orange)">${paidCount*T_RATE}€</span></div>
-    <div class="summary-cell"><label>Έσοδα Συλλόγου</label><span style="color:var(--blue)">${paidCount*C_RATE}€</span></div>`;
+    <div class="summary-cell"><label>Αμοιβή Δασκάλου</label><span style="color:var(--orange)">${sumT}€</span></div>
+    <div class="summary-cell"><label>Έσοδα Συλλόγου</label><span style="color:var(--blue)">${sumC}€</span></div>`;
 
   const tbody=document.getElementById('pay-body');
   if(!cache.students.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="ei">👥</div><p>Πρόσθεσε μαθητές!</p></div></td></tr>`;return;}
@@ -1059,9 +1100,15 @@ async function refreshDashboard(){
   const mo=cache.payments[mk]||{};
   const activeStudents=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, mk));
   const total=activeStudents.length;
-  const paidCount=activeStudents.filter(s=>mo[s.id]?.paid).length;
+  const paidList=activeStudents.filter(s=>mo[s.id]?.paid);
+  const paidCount=paidList.length;
   const unpaid=total-paidCount;
   const pct=total?Math.round(paidCount/total*100):0;
+  const unpaidList=activeStudents.filter(s=>!mo[s.id]?.paid);
+  const dashSumR=paidList.reduce((a,s)=>a+sRate(s),0);
+  const dashSumT=paidList.reduce((a,s)=>a+sTRate(s),0);
+  const dashSumC=paidList.reduce((a,s)=>a+sCRate(s),0);
+  const dashUnpaidR=unpaidList.reduce((a,s)=>a+sRate(s),0);
 
   document.getElementById('dash-stats').innerHTML=`
     <div class="stat-card" style="--accent:var(--orange)">
@@ -1078,22 +1125,22 @@ async function refreshDashboard(){
     <div class="stat-card" style="--accent:var(--red)">
       <div class="stat-label">Ανεξόφλητοι</div>
       <div class="stat-value">${unpaid}</div>
-      <div class="stat-sub">${unpaid*RATE}€ εκκρεμεί</div>
+      <div class="stat-sub">${dashUnpaidR}€ εκκρεμεί</div>
     </div>
     <div class="stat-card" style="--accent:var(--blue)">
       <div class="stat-label">Εισπράξεις Μήνα</div>
-      <div class="stat-value">${paidCount*RATE}€</div>
+      <div class="stat-value">${dashSumR}€</div>
       <div class="stat-sub">${mLabel(mk)}</div>
     </div>
     <div class="stat-card" style="--accent:var(--orange)">
       <div class="stat-label">Αμοιβή Δασκάλου</div>
-      <div class="stat-value">${paidCount*T_RATE}€</div>
-      <div class="stat-sub">8€/μαθητή</div>
+      <div class="stat-value">${dashSumT}€</div>
+      <div class="stat-sub">ανά ομάδα</div>
     </div>
     <div class="stat-card" style="--accent:var(--blue)">
       <div class="stat-label">Έσοδα Συλλόγου</div>
-      <div class="stat-value">${paidCount*C_RATE}€</div>
-      <div class="stat-sub">2€/μαθητή</div>
+      <div class="stat-value">${dashSumC}€</div>
+      <div class="stat-sub">ανά ομάδα</div>
     </div>`;
 
   const notifEl=document.getElementById('dash-notif');
@@ -1117,7 +1164,7 @@ async function refreshDashboard(){
       <td>${teamChip(studentTeamId(s))}</td>
       <td>${pay?.paid?'<span class="badge badge-paid">✅ Πληρωμένος</span>':'<span class="badge badge-unpaid">❌ Εκκρεμεί</span>'}</td>
       <td style="font-family:'JetBrains Mono';font-size:0.78rem;color:var(--text-muted)">${pay?.date||'—'}</td>
-      <td style="font-family:'JetBrains Mono';color:${pay?.paid?'var(--green)':'var(--text-muted)'};">${pay?.paid?T_RATE+'€':'—'}</td>
+      <td style="font-family:'JetBrains Mono';color:${pay?.paid?'var(--green)':'var(--text-muted)'};">${pay?.paid?sTRate(s)+'€':'—'}</td>
     </tr>`;
   }).join('');
 
@@ -1176,11 +1223,11 @@ function renderCharts(){
 
   const teacherData=mks.map(mk=>{
     const mo=cache.payments[mk]||{};
-    return students.filter(s=>isRegisteredForMonth(s, mk)&&mo[s.id]?.paid).length*T_RATE;
+    return students.filter(s=>isRegisteredForMonth(s, mk)&&mo[s.id]?.paid).reduce((a,s)=>a+sTRate(s),0);
   });
   const clubData=mks.map(mk=>{
     const mo=cache.payments[mk]||{};
-    return students.filter(s=>isRegisteredForMonth(s, mk)&&mo[s.id]?.paid).length*C_RATE;
+    return students.filter(s=>isRegisteredForMonth(s, mk)&&mo[s.id]?.paid).reduce((a,s)=>a+sCRate(s),0);
   });
   const pctData=mks.map(mk=>{
     const registered=students.filter(s=>isRegisteredForMonth(s, mk));
@@ -1248,8 +1295,9 @@ function renderTeacher(){
     const mk=mKey(year,m);
     const mo=cache.payments[mk]||{};
     const students=allStudents.filter(s=>isRegisteredForMonth(s, mk));
-    const pc=students.filter(s=>mo[s.id]?.paid).length;
-    const t=pc*T_RATE,c=pc*C_RATE,tot=pc*RATE;
+    const paidStu=students.filter(s=>mo[s.id]?.paid);
+    const pc=paidStu.length;
+    const t=paidStu.reduce((a,s)=>a+sTRate(s),0),c=paidStu.reduce((a,s)=>a+sCRate(s),0),tot=paidStu.reduce((a,s)=>a+sRate(s),0);
     totalT+=t;totalC+=c;
     if(t>bestVal){bestVal=t;bestMon=MONTHS_EL[m];}
     const pct=students.length?Math.round(pc/students.length*100):0;
@@ -1359,7 +1407,9 @@ function renderHistory(){
     });
   });
   rows.sort((a,b)=>b.mk.localeCompare(a.mk));
-  document.getElementById('hist-info').textContent=`${rows.length} εγγραφές · ${rows.length*RATE}€ · δάσκαλος ${rows.length*T_RATE}€`;
+  const histSumR=rows.reduce((a,r)=>a+sRate(r.s),0);
+  const histSumT=rows.reduce((a,r)=>a+sTRate(r.s),0);
+  document.getElementById('hist-info').textContent=`${rows.length} εγγραφές · ${histSumR}€ · δάσκαλος ${histSumT}€`;
   const tbody=document.getElementById('hist-body');
   if(!rows.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><div class="ei">📋</div><p>Δεν βρέθηκαν πληρωμές</p></div></td></tr>`;return;}
   tbody.innerHTML=rows.map(r=>`<tr>
@@ -1367,9 +1417,9 @@ function renderHistory(){
     <td>${r.s.fname} ${r.s.lname}</td>
     <td>${teamChip(studentTeamId(r.s))}</td>
     <td style="font-family:'JetBrains Mono';font-size:0.8rem;color:var(--text-muted)">${r.pay.date||'—'}</td>
-    <td style="font-family:'JetBrains Mono';color:var(--green)">${RATE}€</td>
-    <td style="font-family:'JetBrains Mono';color:var(--orange)">${T_RATE}€</td>
-    <td style="font-family:'JetBrains Mono';color:var(--blue)">${C_RATE}€</td>
+    <td style="font-family:'JetBrains Mono';color:var(--green)">${sRate(r.s)}€</td>
+    <td style="font-family:'JetBrains Mono';color:var(--orange)">${sTRate(r.s)}€</td>
+    <td style="font-family:'JetBrains Mono';color:var(--blue)">${sCRate(r.s)}€</td>
     <td style="color:var(--text-muted);font-size:0.8rem">${r.pay.note||'—'}</td>
   </tr>`).join('');
 }
@@ -1395,7 +1445,7 @@ async function showNotifications(mk){
     `<div style="display:flex;flex-direction:column;gap:0.5rem">`+
     unpaid.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--s2);border-radius:9px;padding:0.65rem 0.9rem;gap:0.5rem">
       <div><strong style="font-size:0.875rem">${s.fname} ${s.lname}</strong><br><small style="color:var(--text-muted)">${teamChip(studentTeamId(s))}</small></div>
-      <span style="font-family:'JetBrains Mono';color:var(--red);font-size:0.85rem">${RATE}€ οφείλει</span>
+      <span style="font-family:'JetBrains Mono';color:var(--red);font-size:0.85rem">${sRate(s)}€ οφείλει</span>
     </div>`).join('')+`</div>`;
   openModal('notifs');
 }
@@ -1409,7 +1459,7 @@ function exportCSV(){
   const rows=[['Ονομα','Επωνυμο','Ομαδα','Τηλεφωνο','Κατασταση','Ημερομηνια','Σημειωση','Αμοιβη Δασκαλου','Εσοδα Συλλογου']];
   cache.students.forEach(s=>{
     const t=getTeam(studentTeamId(s)); const pay=mo[s.id];
-    rows.push([s.fname,s.lname,t?.name||'',s.phone||'',pay?.paid?'Πληρωμενος':'Ανεξοφλητος',pay?.date||'',pay?.note||'',pay?.paid?T_RATE:'',pay?.paid?C_RATE:'']);
+    rows.push([s.fname,s.lname,t?.name||'',s.phone||'',pay?.paid?'Πληρωμενος':'Ανεξοφλητος',pay?.date||'',pay?.note||'',pay?.paid?sTRate(s):'',pay?.paid?sCRate(s):'']);
   });
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
