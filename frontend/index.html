@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HoopsPay — Διαχείριση Πληρωμών Μπάσκετ</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #07090f;
+  --s1: #0e1118;
+  --s2: #141824;
+  --s3: #1c2235;
+  --border: #232a3d;
+  --border-light: #2d3652;
+  --orange: #ff6b00;
+  --orange2: #ff8c38;
+  --orange-dim: rgba(255,107,0,0.1);
+  --orange-glow: rgba(255,107,0,0.25);
+  --green: #00d084;
+  --green-dim: rgba(0,208,132,0.1);
+  --red: #ff4444;
+  --red-dim: rgba(255,68,68,0.1);
+  --blue: #4d9fff;
+  --blue-dim: rgba(77,159,255,0.1);
+  --yellow: #ffd60a;
+  --yellow-dim: rgba(255,214,10,0.1);
+  --text: #dce4f5;
+  --text-muted: #5a6a8a;
+  --text-dim: #2e3a52;
+  --radius: 14px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* ── LAYOUT ── */
+.app{display:flex;height:100vh;overflow:hidden;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:220px;min-width:220px;
+  background:var(--s1);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+  transition:width 0.3s;
+}
+.sidebar-logo{
+  padding:1.5rem 1.25rem 1rem;
+  border-bottom:1px solid var(--border);
+}
+.sidebar-logo .icon{font-size:1.6rem;display:block;margin-bottom:0.3rem;}
+.sidebar-logo h1{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:1.5rem;font-weight:800;
+  letter-spacing:1px;
+  background:linear-gradient(135deg,var(--orange),var(--orange2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.sidebar-logo small{font-size:0.7rem;color:var(--text-muted);letter-spacing:0.5px;}
+
+.sidebar-section{
+  padding:1rem 0.75rem 0.25rem;
+  font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;
+  color:var(--text-dim);font-weight:600;
+}
+.nav-item{
+  display:flex;align-items:center;gap:0.65rem;
+  padding:0.65rem 1.25rem;
+  font-size:0.875rem;font-weight:500;
+  color:var(--text-muted);cursor:pointer;
+  border-left:3px solid transparent;
+  transition:all 0.2s;
+  user-select:none;
+}
+.nav-item:hover{color:var(--text);background:var(--s2);}
+.nav-item.active{color:var(--orange);border-left-color:var(--orange);background:var(--orange-dim);}
+.nav-item .nav-icon{font-size:1rem;width:20px;text-align:center;}
+
+.team-selector{padding:0.75rem;border-bottom:1px solid var(--border);}
+.team-selector label{font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:0.4rem;}
+select.team-sel{
+  width:100%;background:var(--s2);border:1px solid var(--border);
+  color:var(--text);border-radius:8px;padding:0.5rem 0.65rem;
+  font-family:'Outfit',sans-serif;font-size:0.82rem;outline:none;
+}
+select.team-sel:focus{border-color:var(--orange);}
+
+/* ── MAIN CONTENT ── */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.topbar{
+  background:var(--s1);border-bottom:1px solid var(--border);
+  padding:0.85rem 1.75rem;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:1rem;flex-wrap:wrap;
+  position:sticky;top:0;z-index:50;
+}
+.topbar-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:1.4rem;font-weight:700;letter-spacing:0.5px;
+}
+.topbar-actions{display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;}
+
+.content{padding:1.5rem 1.75rem;flex:1;}
+
+/* ── PAGES ── */
+.page{display:none;animation:fadeIn 0.2s ease;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ── BUTTONS ── */
+.btn{
+  border:none;border-radius:9px;padding:0.5rem 1rem;
+  font-family:'Outfit',sans-serif;font-size:0.83rem;font-weight:500;
+  cursor:pointer;transition:all 0.18s;
+  display:inline-flex;align-items:center;gap:0.35rem;
+}
+.btn-primary{background:var(--orange);color:#fff;}
+.btn-primary:hover{background:#e55e00;transform:translateY(-1px);box-shadow:0 4px 16px var(--orange-glow);}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--border-light);}
+.btn-danger{background:var(--red-dim);color:var(--red);border:1px solid transparent;}
+.btn-danger:hover{background:rgba(255,68,68,0.18);}
+.btn-success{background:var(--green-dim);color:var(--green);border:1px solid transparent;}
+.btn-success:hover{background:rgba(0,208,132,0.18);}
+.btn-warning{background:var(--yellow-dim);color:var(--yellow);border:1px solid transparent;}
+.btn-sm{padding:0.3rem 0.65rem;font-size:0.78rem;border-radius:7px;}
+
+/* ── INPUTS ── */
+input[type=text],input[type=number],input[type=date],input[type=email],select,textarea{
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--text);border-radius:9px;
+  padding:0.55rem 0.8rem;font-family:'Outfit',sans-serif;font-size:0.85rem;outline:none;
+  transition:border-color 0.2s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--orange);}
+textarea{resize:vertical;min-height:60px;}
+
+/* ── CARDS ── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-header{
+  padding:1rem 1.25rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;
+}
+.card-title{font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;letter-spacing:0.3px;}
+
+/* ── STATS GRID ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:1.25rem;}
+.stat-card{
+  background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);
+  padding:1.1rem 1.25rem;position:relative;overflow:hidden;
+}
+.stat-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--accent,var(--orange));
+}
+.stat-label{font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.45rem;}
+.stat-value{font-family:'Barlow Condensed',sans-serif;font-size:2.1rem;font-weight:700;letter-spacing:0.5px;line-height:1;}
+.stat-sub{font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem;}
+.stat-progress{height:3px;background:var(--border);border-radius:2px;margin-top:0.5rem;overflow:hidden;}
+.stat-progress-fill{height:100%;background:var(--accent,var(--orange));border-radius:2px;transition:width 0.5s;}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;}
+th{
+  text-align:left;padding:0.65rem 1.1rem;
+  font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;
+  color:var(--text-muted);font-weight:600;
+  background:var(--s2);border-bottom:1px solid var(--border);
+}
+td{padding:0.78rem 1.1rem;font-size:0.858rem;border-bottom:1px solid rgba(35,42,61,0.5);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,107,0,0.03);}
+.table-wrap{overflow-x:auto;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:0.25rem;padding:0.18rem 0.55rem;border-radius:20px;font-size:0.73rem;font-weight:500;}
+.badge-paid{background:var(--green-dim);color:var(--green);}
+.badge-unpaid{background:var(--red-dim);color:var(--red);}
+.badge-team{background:var(--blue-dim);color:var(--blue);}
+
+/* ── MODAL ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;padding:1rem;}
+.overlay.open{display:flex;}
+.modal{
+  background:var(--s1);border:1px solid var(--border);border-radius:18px;
+  padding:1.75rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;
+  box-shadow:var(--shadow);
+}
+.modal h2{font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:700;letter-spacing:0.5px;margin-bottom:1.25rem;}
+.form-group{margin-bottom:0.9rem;}
+.form-group label{display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:0.35rem;}
+.form-group input,.form-group select,.form-group textarea{width:100%;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;}
+.modal-actions{display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.25rem;}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;display:flex;flex-direction:column;gap:0.5rem;}
+.toast{
+  background:var(--s2);border:1px solid var(--border);border-radius:10px;
+  padding:0.7rem 1rem;font-size:0.83rem;
+  display:flex;align-items:center;gap:0.5rem;min-width:230px;
+  animation:toastIn 0.3s ease;box-shadow:var(--shadow);
+}
+@keyframes toastIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+
+/* ── CHARTS ── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;}
+.chart-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;}
+.chart-card h3{font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;margin-bottom:1rem;color:var(--text-muted);}
+.chart-wrap{position:relative;height:200px;}
+
+/* ── NOTIFICATION BANNER ── */
+.notif-banner{
+  background:var(--red-dim);border:1px solid rgba(255,68,68,0.3);
+  border-radius:var(--radius);padding:1rem 1.25rem;
+  margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;
+}
+.notif-banner .notif-count{
+  font-family:'Barlow Condensed',sans-serif;font-size:2rem;font-weight:700;color:var(--red);min-width:40px;
+}
+.notif-banner .notif-text{flex:1;}
+.notif-banner .notif-text strong{display:block;color:var(--red);font-size:0.9rem;}
+.notif-banner .notif-text span{font-size:0.8rem;color:var(--text-muted);}
+
+/* ── SEARCH ── */
+.search-bar{display:flex;gap:0.65rem;align-items:center;flex-wrap:wrap;}
+.search-bar input{min-width:180px;}
+
+/* ── EMPTY ── */
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text-muted);}
+.empty-state .ei{font-size:2.5rem;margin-bottom:0.75rem;}
+.empty-state p{font-size:0.875rem;}
+
+/* ── MONTH NAV ── */
+.month-nav{display:flex;align-items:center;gap:0.5rem;}
+.month-nav select{width:auto;}
+
+/* ── SUMMARY BOX ── */
+.summary-strip{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--border);border-radius:var(--radius);overflow:hidden;
+  margin-bottom:1.25rem;border:1px solid var(--border);
+}
+.summary-cell{background:var(--s1);padding:1rem 1.25rem;}
+.summary-cell label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);display:block;margin-bottom:0.3rem;}
+.summary-cell span{font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:700;}
+
+/* ── TEAM CHIP ── */
+.team-chip{
+  display:inline-block;padding:0.15rem 0.5rem;border-radius:5px;
+  font-size:0.72rem;font-weight:600;
+  background:var(--s3);color:var(--blue);
+}
+
+/* ── PRINT ── */
+@media print{
+  .sidebar,.topbar,.no-print{display:none!important;}
+  .main{overflow:visible;}
+  body{background:#fff;color:#000;}
+  .card,.stat-card,.summary-cell{background:#fff;border:1px solid #ddd;}
+  table th{background:#f5f5f5;}
+  .badge-paid{background:#d4f5e7;color:#00a86b;}
+  .badge-unpaid{background:#fde8e8;color:#cc0000;}
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .sidebar{width:60px;min-width:60px;}
+  .sidebar-logo h1,.sidebar-logo small,.nav-item span,.team-selector label,.team-selector select,.sidebar-section{display:none;}
+  .nav-item{justify-content:center;padding:0.75rem;}
+  .chart-grid{grid-template-columns:1fr;}
+  .content{padding:1rem;}
+  .topbar{padding:0.75rem 1rem;}
+}
+@media(max-width:600px){
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .summary-strip{grid-template-columns:1fr;}
+  .form-row{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div id="global-loading" style="display:none;position:fixed;inset:0;background:rgba(7,9,15,0.85);z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:1rem">
+  <div style="font-size:2.5rem">🏀</div>
+  <div style="color:#dce4f5;font-family:'Outfit',sans-serif;font-size:0.9rem">Φόρτωση...</div>
+</div>
+<div class="app">
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <span class="icon">🏀</span>
+    <h1>HoopsPay</h1>
+    <small>Basketball Academy</small>
+  </div>
+
+  <div class="team-selector">
+    <label>Ενεργή Ομάδα</label>
+    <select class="team-sel" id="global-team" onchange="onTeamChange()">
+      <option value="all">📋 Όλες οι Ομάδες</option>
+    </select>
+  </div>
+
+  <div class="sidebar-section">Κύριο</div>
+  <div class="nav-item active" onclick="navTo('dashboard',this)"><span class="nav-icon">📊</span><span>Dashboard</span></div>
+  <div class="nav-item" onclick="navTo('payments',this)"><span class="nav-icon">💶</span><span>Πληρωμές</span></div>
+  <div class="nav-item" onclick="navTo('students',this)"><span class="nav-icon">👥</span><span>Μαθητές</span></div>
+
+  <div class="sidebar-section">Αναλύσεις</div>
+  <div class="nav-item" onclick="navTo('charts',this)"><span class="nav-icon">📈</span><span>Γραφήματα</span></div>
+  <div class="nav-item" onclick="navTo('teacher',this)"><span class="nav-icon">👨‍🏫</span><span>Δάσκαλος</span></div>
+  <div class="nav-item" onclick="navTo('history',this)"><span class="nav-icon">📋</span><span>Ιστορικό</span></div>
+
+  <div class="sidebar-section">Ρυθμίσεις</div>
+  <div class="nav-item" onclick="navTo('teams',this)"><span class="nav-icon">🏆</span><span>Ομάδες</span></div>
+
+  <div style="margin-top:auto;padding:1rem 0.75rem;border-top:1px solid var(--border);">
+    <div class="nav-item" onclick="doLogout()" style="color:var(--text-muted);">
+      <span class="nav-icon">🚪</span><span>Αποσύνδεση</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">📊 Dashboard</div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm no-print" onclick="showNotifications()">🔔 <span id="notif-badge" style="color:var(--red)"></span></button>
+      <button class="btn btn-ghost btn-sm no-print" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-warning btn-sm no-print" onclick="openModal('backup')">💾 Backup</button>
+      <button class="btn btn-ghost btn-sm no-print" onclick="printReport()">🖨 Εκτύπωση</button>
+      <button class="btn btn-primary btn-sm no-print" onclick="openModal('addStudent')">+ Μαθητής</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="dash-stats"></div>
+      <div id="dash-notif"></div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3>Πληρωμές ανά Μήνα (6μηνο)</h3>
+          <div class="chart-wrap"><canvas id="chart-monthly"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Ανά Ομάδα — Τρέχων Μήνας</h3>
+          <div class="chart-wrap"><canvas id="chart-teams"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Πρόσφατη Δραστηριότητα</div>
+          <div class="month-nav">
+            <select id="dash-month-sel" onchange="refreshDashboard()" style="width:auto"></select>
+          </div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Μαθητής</th><th>Ομάδα</th><th>Κατάσταση</th><th>Ημ/νία</th><th>Αμοιβή Δ.</th></tr></thead>
+          <tbody id="dash-recent"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ══ PAYMENTS ══ -->
+    <div class="page" id="page-payments">
+      <div class="search-bar" style="margin-bottom:1rem;">
+        <div class="month-nav">
+          <button class="btn btn-ghost btn-sm" onclick="shiftMonth(-1)">◀</button>
+          <select id="pay-month-sel" onchange="renderPayments()" style="width:auto"></select>
+          <button class="btn btn-ghost btn-sm" onclick="shiftMonth(1)">▶</button>
+        </div>
+        <input type="text" placeholder="🔍 Αναζήτηση..." id="pay-search" oninput="renderPayments()" style="flex:1;max-width:220px;">
+        <select id="pay-filter-status" onchange="renderPayments()" style="width:auto">
+          <option value="all">Όλοι</option><option value="paid">Πληρωμένοι</option><option value="unpaid">Ανεξόφλητοι</option>
+        </select>
+        <select id="pay-filter-team" onchange="renderPayments()" style="width:auto">
+          <option value="all">Όλες Ομάδες</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="markAllPaid()">✅ Όλοι Πληρωμένοι</button>
+      </div>
+
+      <div class="summary-strip" id="pay-summary"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title" id="pay-card-title">Κατάσταση Πληρωμών</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)" id="pay-count-info"></div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Μαθητής</th><th>Ομάδα</th><th>Κατάσταση</th><th>Ημ/νία</th><th>Σημείωση</th><th>Ενέργεια</th></tr></thead>
+          <tbody id="pay-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ══ STUDENTS ══ -->
+    <div class="page" id="page-students">
+      <div class="search-bar" style="margin-bottom:1rem;">
+        <input type="text" placeholder="🔍 Αναζήτηση..." id="stu-search" oninput="renderStudents()" style="flex:1;max-width:220px;">
+        <select id="stu-filter-team" onchange="renderStudents()" style="width:auto"><option value="all">Όλες Ομάδες</option></select>
+        <select id="stu-filter-active" onchange="renderStudents()" style="width:auto">
+          <option value="active">✅ Ενεργοί</option>
+          <option value="inactive">⏸ Ανενεργοί</option>
+          <option value="all">Όλοι</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('addStudent')">+ Προσθήκη</button>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Μαθητές</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)" id="stu-count"></div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Όνομα</th><th>Ομάδα</th><th>Τηλέφωνο</th><th>Εγγραφή</th><th>Σύνολο Πληρωμών</th><th>Τελευταία Πληρωμή</th><th>Κατάσταση</th><th>Ενέργειες</th></tr></thead>
+          <tbody id="stu-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ══ CHARTS ══ -->
+    <div class="page" id="page-charts">
+      <div class="search-bar" style="margin-bottom:1rem;">
+        <select id="chart-year" onchange="renderCharts()" style="width:auto"></select>
+        <select id="chart-team-filter" onchange="renderCharts()" style="width:auto"><option value="all">Όλες Ομάδες</option></select>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card" style="grid-column:1/-1">
+          <h3>Μηνιαία Έσοδα — Δάσκαλος vs Σύλλογος</h3>
+          <div class="chart-wrap" style="height:260px"><canvas id="chart-income"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Ποσοστό Είσπραξης ανά Μήνα</h3>
+          <div class="chart-wrap"><canvas id="chart-pct"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Σύγκριση Ομάδων</h3>
+          <div class="chart-wrap"><canvas id="chart-compare"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TEACHER ══ -->
+    <div class="page" id="page-teacher">
+      <div class="search-bar" style="margin-bottom:1rem;">
+        <select id="teach-year" onchange="renderTeacher()" style="width:auto"></select>
+        <select id="teach-team" onchange="renderTeacher()" style="width:auto"><option value="all">Όλες Ομάδες</option></select>
+      </div>
+      <div class="stats-grid" id="teach-stats"></div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Ανάλυση ανά Μήνα</div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Μήνας</th><th>Πληρωμένοι</th><th>Σύνολο Εισπράξεων</th><th>Αμοιβή Δασκάλου</th><th>Έσοδα Συλλόγου</th><th>Ποσοστό</th><th>Πληρώθηκε Δάσκαλος</th></tr></thead>
+          <tbody id="teach-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ══ HISTORY ══ -->
+    <div class="page" id="page-history">
+      <div class="search-bar" style="margin-bottom:1rem;">
+        <select id="hist-student" onchange="renderHistory()" style="width:auto"><option value="all">Όλοι Μαθητές</option></select>
+        <select id="hist-team" onchange="renderHistory()" style="width:auto"><option value="all">Όλες Ομάδες</option></select>
+        <select id="hist-from" onchange="renderHistory()" style="width:auto"></select>
+        <span style="color:var(--text-muted);font-size:0.8rem">έως</span>
+        <select id="hist-to" onchange="renderHistory()" style="width:auto"></select>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Ιστορικό Πληρωμών</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)" id="hist-info"></div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Μήνας</th><th>Μαθητής</th><th>Ομάδα</th><th>Ημ/νία Πληρωμής</th><th>Ποσό</th><th>Δάσκαλος</th><th>Σύλλογος</th><th>Σημείωση</th></tr></thead>
+          <tbody id="hist-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ══ TEAMS ══ -->
+    <div class="page" id="page-teams">
+      <div class="card" style="max-width:500px;margin-bottom:1rem">
+        <div class="card-header"><div class="card-title">➕ Νέα Ομάδα</div></div>
+        <div style="padding:1.25rem">
+          <div class="form-row">
+            <div class="form-group"><label>Όνομα Ομάδας *</label><input type="text" id="team-name" placeholder="π.χ. Παιδικό Τμήμα"></div>
+            <div class="form-group"><label>Χρώμα</label><input type="color" id="team-color" value="#4d9fff" style="width:100%;height:38px;padding:2px 4px;cursor:pointer;"></div>
+          </div>
+          <button class="btn btn-primary" onclick="addTeam()">Αποθήκευση Ομάδας</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Ομάδες</div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Χρώμα</th><th>Όνομα</th><th>Μαθητές</th><th>Ενέργειες</th></tr></thead>
+          <tbody id="teams-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══ MODALS ══ -->
+
+<!-- Add Student -->
+<div class="overlay" id="modal-addStudent">
+<div class="modal">
+  <h2>➕ Προσθήκη Μαθητή</h2>
+  <div class="form-row">
+    <div class="form-group"><label>Όνομα *</label><input type="text" id="as-fname" placeholder="Όνομα"></div>
+    <div class="form-group"><label>Επώνυμο *</label><input type="text" id="as-lname" placeholder="Επώνυμο"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Τηλέφωνο</label><input type="text" id="as-phone" placeholder="69xxxxxxxx"></div>
+    <div class="form-group"><label>Email</label><input type="email" id="as-email" placeholder="email@..."></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Ομάδα *</label><select id="as-team"></select></div>
+    <div class="form-group"><label>Ημ. Εγγραφής</label><input type="date" id="as-date"></div>
+  </div>
+  <div class="form-group"><label>Σημειώσεις</label><textarea id="as-notes" placeholder="Προαιρετικά..."></textarea></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal('addStudent')">Άκυρο</button>
+    <button class="btn btn-primary" onclick="addStudent()">Αποθήκευση</button>
+  </div>
+</div>
+</div>
+
+<!-- Edit Student -->
+<div class="overlay" id="modal-editStudent">
+<div class="modal">
+  <h2>✏️ Επεξεργασία Μαθητή</h2>
+  <input type="hidden" id="es-id">
+  <div class="form-row">
+    <div class="form-group"><label>Όνομα *</label><input type="text" id="es-fname"></div>
+    <div class="form-group"><label>Επώνυμο *</label><input type="text" id="es-lname"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Τηλέφωνο</label><input type="text" id="es-phone"></div>
+    <div class="form-group"><label>Email</label><input type="email" id="es-email"></div>
+  </div>
+  <div class="form-group"><label>Ομάδα</label><select id="es-team"></select></div>
+  <div class="form-group"><label>Σημειώσεις</label><textarea id="es-notes"></textarea></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal('editStudent')">Άκυρο</button>
+    <button class="btn btn-primary" onclick="saveEditStudent()">Αποθήκευση</button>
+  </div>
+</div>
+</div>
+
+<!-- Pay Note -->
+<div class="overlay" id="modal-payNote">
+<div class="modal" style="max-width:380px">
+  <h2>💶 Καταγραφή Πληρωμής</h2>
+  <input type="hidden" id="pn-sid">
+  <div class="form-group"><label>Ημερομηνία Πληρωμής</label><input type="date" id="pn-date" style="width:100%"></div>
+  <div class="form-group"><label>Σημείωση (προαιρετική)</label><input type="text" id="pn-note" placeholder="π.χ. Μετρητά, Τράπεζα..." style="width:100%"></div>
+  <div class="modal-actions">
+    <button class="btn btn-ghost" onclick="closeModal('payNote')">Άκυρο</button>
+    <button class="btn btn-success" onclick="confirmPay()">✅ Καταγραφή</button>
+  </div>
+</div>
+</div>
+
+<!-- Notifications -->
+<div class="overlay" id="modal-notifs">
+<div class="modal">
+  <h2>🔔 Ανεξόφλητοι Μαθητές</h2>
+  <div id="notif-content"></div>
+  <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('notifs')">Κλείσιμο</button></div>
+</div>
+</div>
+
+<!-- Backup / Restore -->
+<div class="overlay" id="modal-backup">
+<div class="modal" style="max-width:520px">
+  <h2>💾 Backup & Επαναφορά</h2>
+
+  <div style="background:var(--s2);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;border:1px solid var(--border)">
+    <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">📤 Εξαγωγή JSON</div>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.85rem">Αποθήκευσε <strong style="color:var(--text)">όλα τα δεδομένα</strong> (μαθητές, ομάδες, ιστορικό πληρωμών) σε αρχείο JSON. Μπορείς να το εισάγεις αργότερα σε οποιονδήποτε υπολογιστή.</p>
+    <button class="btn btn-primary" onclick="exportJSON()">⬇ Κατέβασε Backup (.json)</button>
+  </div>
+
+  <div style="background:var(--s2);border-radius:10px;padding:1rem 1.25rem;border:1px solid var(--border)">
+    <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">📥 Εισαγωγή JSON</div>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.85rem">Επίλεξε ένα αρχείο backup (.json) για να επαναφέρεις τα δεδομένα. <strong style="color:var(--red)">Προσοχή: τα υπάρχοντα δεδομένα θα αντικατασταθούν.</strong></p>
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+      <label class="btn btn-ghost" style="cursor:pointer">
+        📂 Επίλεξε αρχείο
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="previewImport(event)">
+      </label>
+      <span id="import-filename" style="font-size:0.82rem;color:var(--text-muted)">Δεν έχει επιλεγεί αρχείο</span>
+    </div>
+    <div id="import-preview" style="margin-top:0.85rem;display:none">
+      <div style="background:var(--s3);border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.85rem;font-size:0.83rem" id="import-info"></div>
+      <button class="btn btn-success" onclick="confirmImport()">✅ Επαναφορά Δεδομένων</button>
+    </div>
+  </div>
+
+  <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('backup')">Κλείσιμο</button></div>
+</div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+// ═══════════════════════════════════
+// CONFIG & API
+// ═══════════════════════════════════
+const RATE=10, T_RATE=8, C_RATE=2;
+const MONTHS_EL=['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
+const MONTHS_SHORT=['Ιαν','Φεβ','Μαρ','Απρ','Μαϊ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+
+let currentPage='dashboard';
+let chartMonthly=null,chartTeams=null,chartIncome=null,chartPct=null,chartCompare=null;
+
+// In-memory cache
+let cache = { teams:[], students:[], payments:{}, teacherPayments:{} };
+
+async function api(method, path, body) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api' + path, opts);
+  if (r.status === 401) { window.location.href = '/login'; return; }
+  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'Σφάλμα'); }
+  return r.json();
+}
+
+async function doLogout() {
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
+
+async function loadAll() {
+  const [teams, students, payments, teacherPayments] = await Promise.all([
+    api('GET','/teams'),
+    api('GET','/students'),
+    api('GET','/payments'),
+    api('GET','/teacher-payments'),
+  ]);
+  cache.teams = teams;
+  cache.students = students;
+  cache.payments = payments;
+  cache.teacherPayments = teacherPayments;
+}
+
+// ═══════════════════════════════════
+// DATE HELPERS
+// ═══════════════════════════════════
+function mKey(y,m){ return `${y}-${String(m+1).padStart(2,'0')}`; }
+function currentMK(){ const d=new Date(); return mKey(d.getFullYear(),d.getMonth()); }
+function toDay(){ return new Date().toISOString().split('T')[0]; }
+function mLabel(key){ const[y,m]=key.split('-'); return `${MONTHS_EL[parseInt(m)-1]} ${y}`; }
+function mShort(key){ const[y,m]=key.split('-'); return `${MONTHS_SHORT[parseInt(m)-1]} ${y.slice(2)}`; }
+function monthOptions(){
+  const opts=[];const now=new Date();
+  for(let i=-23;i<=3;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+    opts.push(mKey(d.getFullYear(),d.getMonth()));
+  }
+  return opts;
+}
+
+// Check if student was registered for a given month
+// If no registration date, assume always registered
+function isRegisteredForMonth(s, mk) {
+  const regDate = s.date;
+  if (!regDate) return true;
+  // regDate format: "YYYY-MM-DD", mk format: "YYYY-MM"
+  const regMK = regDate.substring(0, 7); // "YYYY-MM"
+  return mk >= regMK;
+}
+
+// ═══════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════
+const pageTitles={
+  dashboard:'📊 Dashboard',payments:'💶 Πληρωμές Μήνα',students:'👥 Μαθητές',
+  charts:'📈 Γραφήματα',teacher:'👨‍🏫 Αναφορά Δασκάλου',history:'📋 Ιστορικό',teams:'🏆 Ομάδες'
+};
+function navTo(p,el){
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('page-title').textContent=pageTitles[p]||p;
+  currentPage=p;
+  if(p==='dashboard')refreshDashboard();
+  if(p==='payments')initPayments();
+  if(p==='students')initStudents();
+  if(p==='charts')initCharts();
+  if(p==='teacher')initTeacher();
+  if(p==='history')initHistory();
+  if(p==='teams')renderTeams();
+}
+
+// ═══════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════
+function openModal(id){
+  if(id==='addStudent'){populateTeamSelects();document.getElementById('as-date').value=toDay();}
+  if(id==='payNote'){document.getElementById('pn-date').value=toDay();}
+  document.getElementById('modal-'+id).classList.add('open');
+}
+function closeModal(id){document.getElementById('modal-'+id).classList.remove('open');}
+
+function toast(msg,icon='✅'){
+  const w=document.getElementById('toast-wrap');
+  const t=document.createElement('div');t.className='toast';
+  t.innerHTML=`<span>${icon}</span><span>${msg}</span>`;
+  w.appendChild(t);
+  setTimeout(()=>t.style.opacity='0',2500);
+  setTimeout(()=>t.remove(),3000);
+}
+
+function setLoading(bool){
+  document.getElementById('global-loading').style.display = bool ? 'flex' : 'none';
+}
+
+function getTeam(id){ return cache.teams.find(t=>t.id===id); }
+function teamChip(teamId){
+  const t=getTeam(teamId); if(!t)return'—';
+  return `<span class="team-chip" style="background:${t.color}22;color:${t.color}">${t.name}</span>`;
+}
+function populateTeamSelects(){
+  const opts=cache.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  ['as-team','es-team'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
+}
+function populateSel(selId,opts,all='Όλοι'){
+  const el=document.getElementById(selId);if(!el)return;
+  el.innerHTML=`<option value="all">${all}</option>`+opts;
+}
+function updateGlobalTeamSel(){
+  const sel=document.getElementById('global-team');
+  sel.innerHTML=`<option value="all">📋 Όλες οι Ομάδες</option>`+
+    cache.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+}
+function onTeamChange(){ if(currentPage==='payments')renderPayments(); }
+function syncTeamFilters(){
+  const teamOpts=cache.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  ['pay-filter-team','stu-filter-team','chart-team-filter','teach-team','hist-team'].forEach(id=>populateSel(id,teamOpts,'Όλες Ομάδες'));
+}
+
+// ═══════════════════════════════════
+// TEAMS
+// ═══════════════════════════════════
+async function addTeam(){
+  const name=document.getElementById('team-name').value.trim();
+  if(!name){toast('Συμπλήρωσε όνομα','⚠️');return;}
+  const color=document.getElementById('team-color').value;
+  try{
+    const t = await api('POST','/teams',{name,color});
+    cache.teams.push(t);
+    document.getElementById('team-name').value='';
+    renderTeams();updateGlobalTeamSel();populateTeamSelects();syncTeamFilters();
+    toast(`Ομάδα "${name}" προστέθηκε!`);
+  }catch(e){toast(e.message,'❌');}
+}
+async function deleteTeam(id){
+  if(!confirm('Διαγραφή ομάδας;'))return;
+  try{
+    await api('DELETE',`/teams/${id}`);
+    cache.teams=cache.teams.filter(t=>t.id!==id);
+    renderTeams();updateGlobalTeamSel();syncTeamFilters();toast('Ομάδα διαγράφηκε','🗑');
+  }catch(e){toast(e.message,'❌');}
+}
+function renderTeams(){
+  const tbody=document.getElementById('teams-body');
+  if(!cache.teams.length){tbody.innerHTML=`<tr><td colspan="4"><div class="empty-state"><div class="ei">🏆</div><p>Δεν υπάρχουν ομάδες</p></div></td></tr>`;return;}
+  tbody.innerHTML=cache.teams.map(t=>{
+    const count=cache.students.filter(s=>s.team_id===t.id||s.teamId===t.id).length;
+    return `<tr>
+      <td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${t.color}"></span></td>
+      <td><strong>${t.name}</strong></td>
+      <td>${count} μαθητές</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteTeam('${t.id}')">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// STUDENTS
+// ═══════════════════════════════════
+function studentTeamId(s){ return s.team_id || s.teamId; }
+
+async function addStudent(){
+  const fn=document.getElementById('as-fname').value.trim();
+  const ln=document.getElementById('as-lname').value.trim();
+  if(!fn||!ln){toast('Συμπλήρωσε όνομα και επώνυμο','⚠️');return;}
+  try{
+    const s=await api('POST','/students',{
+      fname:fn, lname:ln,
+      phone:document.getElementById('as-phone').value.trim(),
+      email:document.getElementById('as-email').value.trim(),
+      teamId:document.getElementById('as-team').value,
+      date:document.getElementById('as-date').value,
+      notes:document.getElementById('as-notes').value.trim()
+    });
+    cache.students.push({...s, team_id: s.teamId});
+    ['as-fname','as-lname','as-phone','as-email','as-notes'].forEach(id=>document.getElementById(id).value='');
+    closeModal('addStudent');
+    renderStudents();refreshDashboard();updateNotifBadge();
+    toast(`${fn} ${ln} προστέθηκε!`);
+  }catch(e){toast(e.message,'❌');}
+}
+
+async function editStudent(id){
+  const s=cache.students.find(x=>x.id===id); if(!s)return;
+  populateTeamSelects();
+  document.getElementById('es-id').value=id;
+  document.getElementById('es-fname').value=s.fname;
+  document.getElementById('es-lname').value=s.lname;
+  document.getElementById('es-phone').value=s.phone||'';
+  document.getElementById('es-email').value=s.email||'';
+  document.getElementById('es-notes').value=s.notes||'';
+  setTimeout(()=>{document.getElementById('es-team').value=studentTeamId(s)||'';},0);
+  openModal('editStudent');
+}
+
+async function saveEditStudent(){
+  const id=document.getElementById('es-id').value;
+  const fn=document.getElementById('es-fname').value.trim();
+  const ln=document.getElementById('es-lname').value.trim();
+  if(!fn||!ln){toast('Συμπλήρωσε όνομα','⚠️');return;}
+  const s=cache.students.find(x=>x.id===id); if(!s)return;
+  const teamId=document.getElementById('es-team').value;
+  try{
+    await api('PUT',`/students/${id}`,{
+      fname:fn, lname:ln,
+      phone:document.getElementById('es-phone').value.trim(),
+      email:document.getElementById('es-email').value.trim(),
+      teamId, notes:document.getElementById('es-notes').value.trim(),
+      active:s.active
+    });
+    Object.assign(s,{fname:fn,lname:ln,phone:document.getElementById('es-phone').value.trim(),
+      email:document.getElementById('es-email').value.trim(),team_id:teamId,teamId,
+      notes:document.getElementById('es-notes').value.trim()});
+    closeModal('editStudent');renderStudents();toast('Αποθηκεύτηκε!');
+  }catch(e){toast(e.message,'❌');}
+}
+
+async function deleteStudent(id){
+  if(!confirm('Διαγραφή μαθητή; Θα διαγραφεί και το ιστορικό.'))return;
+  try{
+    await api('DELETE',`/students/${id}`);
+    cache.students=cache.students.filter(x=>x.id!==id);
+    // Remove from local payments cache
+    Object.values(cache.payments).forEach(mo=>{ if(mo[id]) delete mo[id]; });
+    renderStudents();refreshDashboard();updateNotifBadge();toast('Διαγράφηκε','🗑');
+  }catch(e){toast(e.message,'❌');}
+}
+
+async function toggleActive(id){
+  const s=cache.students.find(x=>x.id===id); if(!s)return;
+  const newActive = s.active===false ? true : false;
+  try{
+    await api('PUT',`/students/${id}`,{
+      fname:s.fname,lname:s.lname,phone:s.phone||'',email:s.email||'',
+      teamId:studentTeamId(s),notes:s.notes||'',active:newActive
+    });
+    s.active=newActive;
+    renderStudents();refreshDashboard();updateNotifBadge();
+    toast(newActive?`${s.fname} ${s.lname} — Ενεργός ξανά!`:`${s.fname} ${s.lname} — Ανενεργός`,'🔄');
+  }catch(e){toast(e.message,'❌');}
+}
+
+function initStudents(){ syncTeamFilters(); renderStudents(); }
+function renderStudents(){
+  const q=(document.getElementById('stu-search')?.value||'').toLowerCase();
+  const tf=document.getElementById('stu-filter-team')?.value||'all';
+  const af=document.getElementById('stu-filter-active')?.value||'active';
+  let list=cache.students.filter(s=>{
+    if(tf!=='all'&&studentTeamId(s)!==tf)return false;
+    if(q&&!`${s.fname} ${s.lname}`.toLowerCase().includes(q))return false;
+    const isActive=s.active!==false;
+    if(af==='active'&&!isActive)return false;
+    if(af==='inactive'&&isActive)return false;
+    return true;
+  });
+  const activeCount=cache.students.filter(s=>s.active!==false).length;
+  const inactiveCount=cache.students.length-activeCount;
+  document.getElementById('stu-count').textContent=`${activeCount} ενεργοί · ${inactiveCount} ανενεργοί`;
+  const tbody=document.getElementById('stu-body');
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><div class="ei">👤</div><p>Δεν βρέθηκαν μαθητές</p></div></td></tr>`;return;}
+  tbody.innerHTML=list.map(s=>{
+    const isActive=s.active!==false;
+    let total=0,lastPay='—';
+    Object.entries(cache.payments).sort((a,b)=>b[0].localeCompare(a[0])).forEach(([mk,mo])=>{
+      if(mo[s.id]?.paid){total+=RATE;if(lastPay==='—')lastPay=mLabel(mk);}
+    });
+    return `<tr style="${isActive?'':'opacity:0.55'}">
+      <td>
+        <strong>${s.fname} ${s.lname}</strong>
+        ${!isActive?'<span class="badge" style="background:var(--yellow-dim);color:var(--yellow);margin-left:0.4rem">⏸ Ανενεργός</span>':''}
+        ${s.notes?`<br><small style="color:var(--text-muted)">${s.notes}</small>`:''}
+      </td>
+      <td>${teamChip(studentTeamId(s))}</td>
+      <td style="color:var(--text-muted);font-family:'JetBrains Mono';font-size:0.8rem">${s.phone||'—'}</td>
+      <td style="color:var(--text-muted);font-size:0.8rem">${s.date||'—'}</td>
+      <td style="color:var(--green);font-family:'JetBrains Mono';font-weight:500">${total}€</td>
+      <td style="color:var(--text-muted);font-size:0.8rem">${lastPay}</td>
+      <td><div style="display:flex;gap:0.35rem">
+        <button class="btn btn-sm ${isActive?'btn-warning':'btn-success'}" onclick="toggleActive('${s.id}')">${isActive?'⏸':'▶'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="editStudent('${s.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════
+// PAYMENTS
+// ═══════════════════════════════════
+let activePayMonth=currentMK();
+
+async function initPayments(){
+  syncTeamFilters();
+  const sel=document.getElementById('pay-month-sel');
+  const opts=monthOptions();
+  sel.innerHTML=opts.map(o=>`<option value="${o}" ${o===activePayMonth?'selected':''}>${mLabel(o)}</option>`).join('');
+  await loadMonthPayments(activePayMonth);
+  renderPayments();
+}
+
+async function loadMonthPayments(mk){
+  if(!cache.payments[mk]){
+    const mo = await api('GET',`/payments/${mk}`);
+    cache.payments[mk] = mo;
+  }
+}
+
+function shiftMonth(dir){
+  const opts=monthOptions();
+  const idx=opts.indexOf(activePayMonth);
+  const ni=Math.max(0,Math.min(opts.length-1,idx+dir));
+  activePayMonth=opts[ni];
+  document.getElementById('pay-month-sel').value=activePayMonth;
+  loadMonthPayments(activePayMonth).then(renderPayments);
+}
+
+async function renderPayments(){
+  activePayMonth=document.getElementById('pay-month-sel')?.value||activePayMonth;
+  await loadMonthPayments(activePayMonth);
+  const q=(document.getElementById('pay-search')?.value||'').toLowerCase();
+  const fs=document.getElementById('pay-filter-status')?.value||'all';
+  const ft=document.getElementById('pay-filter-team')?.value||'all';
+  const gtf=document.getElementById('global-team')?.value||'all';
+  const mo=cache.payments[activePayMonth]||{};
+
+  let list=cache.students.filter(s=>{
+    if(s.active===false)return false;
+    if(!isRegisteredForMonth(s, activePayMonth))return false;
+    if(gtf!=='all'&&studentTeamId(s)!==gtf)return false;
+    if(ft!=='all'&&studentTeamId(s)!==ft)return false;
+    if(q&&!`${s.fname} ${s.lname}`.toLowerCase().includes(q))return false;
+    if(fs==='paid'&&!mo[s.id]?.paid)return false;
+    if(fs==='unpaid'&&mo[s.id]?.paid)return false;
+    return true;
+  });
+
+  const paidCount=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, activePayMonth)&&mo[s.id]?.paid&&(gtf==='all'||studentTeamId(s)===gtf)).length;
+
+  document.getElementById('pay-card-title').textContent=`Κατάσταση — ${mLabel(activePayMonth)}`;
+  document.getElementById('pay-count-info').textContent=`${list.filter(s=>mo[s.id]?.paid).length}/${list.length} πληρωμένοι`;
+  document.getElementById('pay-summary').innerHTML=`
+    <div class="summary-cell"><label>Πληρωμένοι</label><span style="color:var(--green)">${paidCount}</span></div>
+    <div class="summary-cell"><label>Αμοιβή Δασκάλου</label><span style="color:var(--orange)">${paidCount*T_RATE}€</span></div>
+    <div class="summary-cell"><label>Έσοδα Συλλόγου</label><span style="color:var(--blue)">${paidCount*C_RATE}€</span></div>`;
+
+  const tbody=document.getElementById('pay-body');
+  if(!cache.students.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="ei">👥</div><p>Πρόσθεσε μαθητές!</p></div></td></tr>`;return;}
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="ei">🔍</div><p>Δεν βρέθηκαν αποτελέσματα</p></div></td></tr>`;return;}
+
+  tbody.innerHTML=list.map(s=>{
+    const pay=mo[s.id]; const isPaid=pay?.paid;
+    return `<tr>
+      <td><strong>${s.fname} ${s.lname}</strong></td>
+      <td>${teamChip(studentTeamId(s))}</td>
+      <td>${isPaid?'<span class="badge badge-paid">✅ Πληρωμένος</span>':'<span class="badge badge-unpaid">❌ Εκκρεμεί</span>'}</td>
+      <td style="font-family:'JetBrains Mono';font-size:0.78rem;color:var(--text-muted)">${isPaid?(pay.date||'—'):'—'}</td>
+      <td style="font-size:0.8rem;color:var(--text-muted)">${pay?.note||'—'}</td>
+      <td>${isPaid
+        ?`<button class="btn btn-danger btn-sm" onclick="unpay('${s.id}')">↩ Αναίρεση</button>`
+        :`<button class="btn btn-success btn-sm" onclick="openPayNote('${s.id}')">💶 Πληρωμή</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openPayNote(sid){
+  document.getElementById('pn-sid').value=sid;
+  document.getElementById('pn-note').value='';
+  document.getElementById('pn-date').value=toDay();
+  openModal('payNote');
+}
+
+async function confirmPay(){
+  const sid=document.getElementById('pn-sid').value;
+  const note=document.getElementById('pn-note').value.trim();
+  const date=document.getElementById('pn-date').value||toDay();
+  try{
+    await api('POST','/payments',{studentId:sid,monthKey:activePayMonth,paid:true,date,note});
+    if(!cache.payments[activePayMonth])cache.payments[activePayMonth]={};
+    cache.payments[activePayMonth][sid]={paid:true,date,note};
+    closeModal('payNote');renderPayments();refreshDashboard();updateNotifBadge();
+    const s=cache.students.find(x=>x.id===sid);
+    toast(`${s?.fname} ${s?.lname} — Πληρωμή καταγράφηκε!`);
+  }catch(e){toast(e.message,'❌');}
+}
+
+async function unpay(sid){
+  if(!confirm('Αναίρεση πληρωμής;'))return;
+  try{
+    await api('DELETE',`/payments/${sid}/${activePayMonth}`);
+    if(cache.payments[activePayMonth]) delete cache.payments[activePayMonth][sid];
+    renderPayments();refreshDashboard();updateNotifBadge();toast('Αναίρεση πληρωμής','↩');
+  }catch(e){toast(e.message,'❌');}
+}
+
+async function markAllPaid(){
+  const tf=document.getElementById('pay-filter-team')?.value||'all';
+  const gtf=document.getElementById('global-team')?.value||'all';
+  const targets=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, activePayMonth)&&(gtf==='all'||studentTeamId(s)===gtf)&&(tf==='all'||studentTeamId(s)===tf));
+  if(!confirm(`Σήμανση ${targets.length} μαθητών ως πληρωμένων;`))return;
+  const date=toDay();
+  try{
+    await api('POST','/payments/bulk',{studentIds:targets.map(s=>s.id),monthKey:activePayMonth,paid:true,date,note:''});
+    if(!cache.payments[activePayMonth])cache.payments[activePayMonth]={};
+    targets.forEach(s=>{
+      if(!cache.payments[activePayMonth][s.id]?.paid)
+        cache.payments[activePayMonth][s.id]={paid:true,date,note:''};
+    });
+    renderPayments();refreshDashboard();updateNotifBadge();toast('Όλοι σημάνθηκαν ως πληρωμένοι!');
+  }catch(e){toast(e.message,'❌');}
+}
+
+// ═══════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════
+async function initDashboard(){
+  const opts=monthOptions();
+  const sel=document.getElementById('dash-month-sel');
+  sel.innerHTML=opts.map(o=>`<option value="${o}" ${o===currentMK()?'selected':''}>${mLabel(o)}</option>`).join('');
+  await refreshDashboard();
+}
+
+async function refreshDashboard(){
+  const mk=document.getElementById('dash-month-sel')?.value||currentMK();
+  await loadMonthPayments(mk);
+  const mo=cache.payments[mk]||{};
+  const activeStudents=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, mk));
+  const total=activeStudents.length;
+  const paidCount=activeStudents.filter(s=>mo[s.id]?.paid).length;
+  const unpaid=total-paidCount;
+  const pct=total?Math.round(paidCount/total*100):0;
+
+  document.getElementById('dash-stats').innerHTML=`
+    <div class="stat-card" style="--accent:var(--orange)">
+      <div class="stat-label">Ενεργοί Μαθητές</div>
+      <div class="stat-value">${total}</div>
+      <div class="stat-sub">${cache.teams.length} ομάδες · ${cache.students.length-total} ανενεργοί</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--green)">
+      <div class="stat-label">Πληρωμένοι</div>
+      <div class="stat-value">${paidCount}</div>
+      <div class="stat-sub">${pct}% είσπραξης</div>
+      <div class="stat-progress"><div class="stat-progress-fill" style="width:${pct}%;--accent:var(--green)"></div></div>
+    </div>
+    <div class="stat-card" style="--accent:var(--red)">
+      <div class="stat-label">Ανεξόφλητοι</div>
+      <div class="stat-value">${unpaid}</div>
+      <div class="stat-sub">${unpaid*RATE}€ εκκρεμεί</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--blue)">
+      <div class="stat-label">Εισπράξεις Μήνα</div>
+      <div class="stat-value">${paidCount*RATE}€</div>
+      <div class="stat-sub">${mLabel(mk)}</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--orange)">
+      <div class="stat-label">Αμοιβή Δασκάλου</div>
+      <div class="stat-value">${paidCount*T_RATE}€</div>
+      <div class="stat-sub">8€/μαθητή</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--blue)">
+      <div class="stat-label">Έσοδα Συλλόγου</div>
+      <div class="stat-value">${paidCount*C_RATE}€</div>
+      <div class="stat-sub">2€/μαθητή</div>
+    </div>`;
+
+  const notifEl=document.getElementById('dash-notif');
+  if(unpaid>0){
+    notifEl.innerHTML=`<div class="notif-banner">
+      <div class="notif-count">${unpaid}</div>
+      <div class="notif-text">
+        <strong>Ανεξόφλητοι μαθητές για ${mLabel(mk)}</strong>
+        <span>Κάνε κλικ για να δεις ποιοι δεν έχουν πληρώσει</span>
+      </div>
+      <button class="btn btn-danger btn-sm no-print" onclick="showNotifications('${mk}')">Προβολή →</button>
+    </div>`;
+  } else { notifEl.innerHTML=''; }
+
+  const tbody=document.getElementById('dash-recent');
+  if(!cache.students.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="ei">🏀</div><p>Πρόσθεσε μαθητές!</p></div></td></tr>`;return;}
+  tbody.innerHTML=activeStudents.slice(0,8).map(s=>{
+    const pay=mo[s.id];
+    return `<tr>
+      <td>${s.fname} ${s.lname}</td>
+      <td>${teamChip(studentTeamId(s))}</td>
+      <td>${pay?.paid?'<span class="badge badge-paid">✅ Πληρωμένος</span>':'<span class="badge badge-unpaid">❌ Εκκρεμεί</span>'}</td>
+      <td style="font-family:'JetBrains Mono';font-size:0.78rem;color:var(--text-muted)">${pay?.date||'—'}</td>
+      <td style="font-family:'JetBrains Mono';color:${pay?.paid?'var(--green)':'var(--text-muted)'};">${pay?.paid?T_RATE+'€':'—'}</td>
+    </tr>`;
+  }).join('');
+
+  buildMiniCharts(mk);
+}
+
+function buildMiniCharts(mk){
+  const opts=monthOptions();
+  const idx=opts.indexOf(mk);
+  const last6=opts.slice(Math.max(0,idx-5),idx+1);
+  const labels=last6.map(mShort);
+  const paid=last6.map(k=>{
+    const mo=cache.payments[k]||{};
+    return cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, k)&&mo[s.id]?.paid).length;
+  });
+
+  if(chartMonthly)chartMonthly.destroy();
+  chartMonthly=new Chart(document.getElementById('chart-monthly'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Πληρωμένοι',data:paid,backgroundColor:'rgba(255,107,0,0.7)',borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a6a8a',font:{size:10}}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a6a8a',font:{size:10},stepSize:1}}}}
+  });
+
+  const mo=cache.payments[mk]||{};
+  const teamLabels=cache.teams.map(t=>t.name);
+  const teamPaid=cache.teams.map(t=>cache.students.filter(s=>s.active!==false&&studentTeamId(s)===t.id&&mo[s.id]?.paid).length);
+  const teamColors=cache.teams.map(t=>t.color);
+
+  if(chartTeams)chartTeams.destroy();
+  chartTeams=new Chart(document.getElementById('chart-teams'),{
+    type:'doughnut',
+    data:{labels:teamLabels,datasets:[{data:teamPaid,backgroundColor:teamColors.map(c=>c+'bb'),borderColor:teamColors,borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#5a6a8a',font:{size:10},padding:8}}},cutout:'65%'}
+  });
+}
+
+// ═══════════════════════════════════
+// CHARTS PAGE
+// ═══════════════════════════════════
+function initCharts(){
+  const now=new Date().getFullYear();
+  const sel=document.getElementById('chart-year');
+  sel.innerHTML=[now-1,now,now+1].map(y=>`<option value="${y}" ${y===now?'selected':''}>${y}</option>`).join('');
+  syncTeamFilters();renderCharts();
+}
+function renderCharts(){
+  const year=parseInt(document.getElementById('chart-year').value);
+  const tf=document.getElementById('chart-team-filter')?.value||'all';
+  const mks=Array.from({length:12},(_,i)=>mKey(year,i));
+  const labels=MONTHS_SHORT;
+
+  let students=cache.students.filter(s=>s.active!==false);
+  if(tf!=='all')students=students.filter(s=>studentTeamId(s)===tf);
+
+  const teacherData=mks.map(mk=>{
+    const mo=cache.payments[mk]||{};
+    return students.filter(s=>isRegisteredForMonth(s, mk)&&mo[s.id]?.paid).length*T_RATE;
+  });
+  const clubData=mks.map(mk=>{
+    const mo=cache.payments[mk]||{};
+    return students.filter(s=>isRegisteredForMonth(s, mk)&&mo[s.id]?.paid).length*C_RATE;
+  });
+  const pctData=mks.map(mk=>{
+    const registered=students.filter(s=>isRegisteredForMonth(s, mk));
+    if(!registered.length)return 0;
+    const mo=cache.payments[mk]||{};
+    return Math.round(registered.filter(s=>mo[s.id]?.paid).length/registered.length*100);
+  });
+
+  if(chartIncome)chartIncome.destroy();
+  chartIncome=new Chart(document.getElementById('chart-income'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Δάσκαλος',data:teacherData,backgroundColor:'rgba(255,107,0,0.75)',borderRadius:4,borderSkipped:false},
+      {label:'Σύλλογος',data:clubData,backgroundColor:'rgba(77,159,255,0.75)',borderRadius:4,borderSkipped:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#dce4f5'}}},
+      scales:{x:{stacked:false,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a6a8a'}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a6a8a',callback:v=>v+'€'}}}}
+  });
+
+  if(chartPct)chartPct.destroy();
+  chartPct=new Chart(document.getElementById('chart-pct'),{
+    type:'line',
+    data:{labels,datasets:[{label:'Ποσοστό %',data:pctData,borderColor:'var(--green)',backgroundColor:'rgba(0,208,132,0.1)',tension:0.4,fill:true,pointBackgroundColor:'var(--green)'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a6a8a'}},
+        y:{min:0,max:100,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a6a8a',callback:v=>v+'%'}}}}
+  });
+
+  const mk=currentMK();
+  const mo=cache.payments[mk]||{};
+  const compLabels=cache.teams.map(t=>t.name);
+  const compData=cache.teams.map(t=>cache.students.filter(s=>studentTeamId(s)===t.id&&mo[s.id]?.paid).length);
+  const compColors=cache.teams.map(t=>t.color+'bb');
+
+  if(chartCompare)chartCompare.destroy();
+  chartCompare=new Chart(document.getElementById('chart-compare'),{
+    type:'bar',
+    data:{labels:compLabels,datasets:[{label:'Πληρωμένοι (Τρέχ. Μήνας)',data:compData,backgroundColor:compColors,borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a6a8a'}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a6a8a',stepSize:1}}}}
+  });
+}
+
+// ═══════════════════════════════════
+// TEACHER
+// ═══════════════════════════════════
+function initTeacher(){
+  const now=new Date().getFullYear();
+  const sel=document.getElementById('teach-year');
+  sel.innerHTML=[now-1,now,now+1].map(y=>`<option value="${y}" ${y===now?'selected':''}>${y}</option>`).join('');
+  syncTeamFilters();renderTeacher();
+}
+function renderTeacher(){
+  const year=parseInt(document.getElementById('teach-year').value);
+  const tf=document.getElementById('teach-team')?.value||'all';
+  let allStudents=cache.students;
+  if(tf!=='all')allStudents=allStudents.filter(s=>studentTeamId(s)===tf);
+
+  let totalT=0,totalC=0,bestMon='',bestVal=0;
+  let totalTPaid=0,totalTUnpaid=0;
+  const rows=[];
+  for(let m=0;m<12;m++){
+    const mk=mKey(year,m);
+    const mo=cache.payments[mk]||{};
+    const students=allStudents.filter(s=>isRegisteredForMonth(s, mk));
+    const pc=students.filter(s=>mo[s.id]?.paid).length;
+    const t=pc*T_RATE,c=pc*C_RATE,tot=pc*RATE;
+    totalT+=t;totalC+=c;
+    if(t>bestVal){bestVal=t;bestMon=MONTHS_EL[m];}
+    const pct=students.length?Math.round(pc/students.length*100):0;
+    const tp=cache.teacherPayments[mk];
+    if(tp?.paid){totalTPaid+=t;}else if(t>0){totalTUnpaid+=t;}
+    rows.push({m:MONTHS_EL[m],mk,pc,t,c,tot,pct,tp,isNow:m===new Date().getMonth()&&year===new Date().getFullYear()});
+  }
+
+  document.getElementById('teach-stats').innerHTML=`
+    <div class="stat-card" style="--accent:var(--orange)">
+      <div class="stat-label">Σύνολο Έτους (Δάσκαλος)</div>
+      <div class="stat-value">${totalT}€</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--blue)">
+      <div class="stat-label">Σύνολο Έτους (Σύλλογος)</div>
+      <div class="stat-value">${totalC}€</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--green)">
+      <div class="stat-label">Καλύτερος Μήνας</div>
+      <div class="stat-value" style="font-size:1.4rem">${bestMon||'—'}</div>
+      <div class="stat-sub">${bestVal}€ αμοιβή</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--green)">
+      <div class="stat-label">Πληρώθηκε Δάσκαλος</div>
+      <div class="stat-value" style="color:var(--green)">${totalTPaid}€</div>
+    </div>
+    <div class="stat-card" style="--accent:var(--red)">
+      <div class="stat-label">Εκκρεμεί προς Δάσκαλο</div>
+      <div class="stat-value" style="color:var(--red)">${totalTUnpaid}€</div>
+    </div>`;
+
+  document.getElementById('teach-body').innerHTML=rows.map(r=>`
+    <tr ${r.isNow?'style="background:var(--orange-dim)"':''}>
+      <td><strong>${r.m}</strong>${r.isNow?' <span class="badge badge-paid" style="font-size:0.65rem">ΤΩΡΑ</span>':''}</td>
+      <td style="font-family:'JetBrains Mono'">${r.pc}</td>
+      <td style="font-family:'JetBrains Mono';font-weight:600">${r.tot}€</td>
+      <td style="font-family:'JetBrains Mono';color:var(--orange);font-weight:600">${r.t}€</td>
+      <td style="font-family:'JetBrains Mono';color:var(--blue)">${r.c}€</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <div class="stat-progress" style="width:80px"><div class="stat-progress-fill" style="width:${r.pct}%;--accent:var(--green)"></div></div>
+          <span style="font-size:0.78rem;color:var(--text-muted)">${r.pct}%</span>
+        </div>
+      </td>
+      <td>
+        ${r.t===0?'<span style="color:var(--text-muted);font-size:0.8rem">—</span>':
+          r.tp?.paid
+            ?`<span class="badge badge-paid">✅ Πληρώθηκε</span>
+              <small style="color:var(--text-muted);margin-left:0.3rem">${r.tp.date||''}</small>
+              <button class="btn btn-danger btn-sm" style="margin-left:0.4rem" onclick="unmarkTeacherPaid('${r.mk}')">↩</button>`
+            :`<button class="btn btn-success btn-sm" onclick="markTeacherPaid('${r.mk}')">💶 Πληρωμή</button>`}
+      </td>
+    </tr>`).join('');
+}
+
+async function markTeacherPaid(mk){
+  const date=toDay();
+  try{
+    await api('POST','/teacher-payments',{monthKey:mk,paid:true,date,note:''});
+    cache.teacherPayments[mk]={paid:true,date,note:''};
+    renderTeacher();
+    toast(`Δάσκαλος πληρώθηκε — ${mLabel(mk)}!`);
+  }catch(e){toast(e.message,'❌');}
+}
+
+async function unmarkTeacherPaid(mk){
+  if(!confirm('Αναίρεση πληρωμής δασκάλου;'))return;
+  try{
+    await api('POST','/teacher-payments',{monthKey:mk,paid:false,date:'',note:''});
+    delete cache.teacherPayments[mk];
+    renderTeacher();
+    toast('Αναίρεση πληρωμής δασκάλου','↩');
+  }catch(e){toast(e.message,'❌');}
+}
+
+// ═══════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════
+function initHistory(){
+  const opts=monthOptions(); const now=currentMK();
+  const oHtml=opts.map(o=>`<option value="${o}">${mLabel(o)}</option>`).join('');
+  document.getElementById('hist-from').innerHTML=oHtml;
+  document.getElementById('hist-to').innerHTML=oHtml;
+  document.getElementById('hist-to').value=now;
+  const fi=Math.max(0,opts.indexOf(now)-5);
+  document.getElementById('hist-from').value=opts[fi]||now;
+  document.getElementById('hist-student').innerHTML=`<option value="all">Όλοι Μαθητές</option>`+
+    cache.students.map(s=>`<option value="${s.id}">${s.fname} ${s.lname}</option>`).join('');
+  syncTeamFilters();renderHistory();
+}
+function renderHistory(){
+  const from=document.getElementById('hist-from').value;
+  const to=document.getElementById('hist-to').value;
+  const sid=document.getElementById('hist-student').value;
+  const tf=document.getElementById('hist-team')?.value||'all';
+  const opts=monthOptions();
+  const rows=[];
+  opts.forEach(mk=>{
+    if(mk<from||mk>to)return;
+    const mo=cache.payments[mk]||{};
+    Object.entries(mo).forEach(([id,pay])=>{
+      if(!pay.paid)return;
+      const s=cache.students.find(x=>x.id===id); if(!s)return;
+      if(sid!=='all'&&id!==sid)return;
+      if(tf!=='all'&&studentTeamId(s)!==tf)return;
+      rows.push({mk,s,pay});
+    });
+  });
+  rows.sort((a,b)=>b.mk.localeCompare(a.mk));
+  document.getElementById('hist-info').textContent=`${rows.length} εγγραφές · ${rows.length*RATE}€ · δάσκαλος ${rows.length*T_RATE}€`;
+  const tbody=document.getElementById('hist-body');
+  if(!rows.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><div class="ei">📋</div><p>Δεν βρέθηκαν πληρωμές</p></div></td></tr>`;return;}
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td style="font-family:'JetBrains Mono';color:var(--orange);font-size:0.82rem">${mLabel(r.mk)}</td>
+    <td>${r.s.fname} ${r.s.lname}</td>
+    <td>${teamChip(studentTeamId(r.s))}</td>
+    <td style="font-family:'JetBrains Mono';font-size:0.8rem;color:var(--text-muted)">${r.pay.date||'—'}</td>
+    <td style="font-family:'JetBrains Mono';color:var(--green)">${RATE}€</td>
+    <td style="font-family:'JetBrains Mono';color:var(--orange)">${T_RATE}€</td>
+    <td style="font-family:'JetBrains Mono';color:var(--blue)">${C_RATE}€</td>
+    <td style="color:var(--text-muted);font-size:0.8rem">${r.pay.note||'—'}</td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════
+async function updateNotifBadge(){
+  const mk=currentMK();
+  await loadMonthPayments(mk);
+  const mo=cache.payments[mk]||{};
+  const count=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, mk)&&!mo[s.id]?.paid).length;
+  document.getElementById('notif-badge').textContent=count>0?` (${count})`:'';
+}
+async function showNotifications(mk){
+  if(!mk) mk=currentMK();
+  await loadMonthPayments(mk);
+  const mo=cache.payments[mk]||{};
+  const unpaid=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, mk)&&!mo[s.id]?.paid);
+  const el=document.getElementById('notif-content');
+  if(!unpaid.length){el.innerHTML='<div class="empty-state"><div class="ei">🎉</div><p>Όλοι έχουν πληρώσει!</p></div>';openModal('notifs');return;}
+  el.innerHTML=`<p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">${mLabel(mk)} — ${unpaid.length} ανεξόφλητοι</p>`+
+    `<div style="display:flex;flex-direction:column;gap:0.5rem">`+
+    unpaid.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--s2);border-radius:9px;padding:0.65rem 0.9rem;gap:0.5rem">
+      <div><strong style="font-size:0.875rem">${s.fname} ${s.lname}</strong><br><small style="color:var(--text-muted)">${teamChip(studentTeamId(s))}</small></div>
+      <span style="font-family:'JetBrains Mono';color:var(--red);font-size:0.85rem">${RATE}€ οφείλει</span>
+    </div>`).join('')+`</div>`;
+  openModal('notifs');
+}
+
+// ═══════════════════════════════════
+// EXPORT CSV
+// ═══════════════════════════════════
+function exportCSV(){
+  const mk=activePayMonth||currentMK();
+  const mo=cache.payments[mk]||{};
+  const rows=[['Ονομα','Επωνυμο','Ομαδα','Τηλεφωνο','Κατασταση','Ημερομηνια','Σημειωση','Αμοιβη Δασκαλου','Εσοδα Συλλογου']];
+  cache.students.forEach(s=>{
+    const t=getTeam(studentTeamId(s)); const pay=mo[s.id];
+    rows.push([s.fname,s.lname,t?.name||'',s.phone||'',pay?.paid?'Πληρωμενος':'Ανεξοφλητος',pay?.date||'',pay?.note||'',pay?.paid?T_RATE:'',pay?.paid?C_RATE:'']);
+  });
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`basketball_${mk}.csv`;a.click();
+  toast('Εξαγωγή CSV!','⬇');
+}
+function printReport(){ window.print(); }
+
+// ═══════════════════════════════════
+// BACKUP & RESTORE
+// ═══════════════════════════════════
+async function exportJSON(){
+  try{
+    const data=await api('GET','/backup');
+    const ts=new Date().toISOString().slice(0,10);
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`hooopspay_backup_${ts}.json`;a.click();
+    toast('Backup αποθηκεύτηκε!','💾');
+  }catch(e){toast(e.message,'❌');}
+}
+
+let importedData=null;
+function previewImport(e){
+  const file=e.target.files[0]; if(!file)return;
+  document.getElementById('import-filename').textContent=file.name;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const parsed=JSON.parse(ev.target.result);
+      if(!parsed.students||!parsed.teams||!parsed.payments){toast('Μη έγκυρο backup','❌');return;}
+      importedData=parsed;
+      const totalPaid=Object.values(parsed.payments).reduce((sum,mo)=>sum+Object.values(mo).filter(p=>p.paid).length,0);
+      document.getElementById('import-info').innerHTML=
+        '<div style="display:flex;gap:1.5rem;justify-content:center">'
+        +'<div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--orange)">'+parsed.students.length+'</div><div style="font-size:0.75rem;color:var(--text-muted)">Μαθητές</div></div>'
+        +'<div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--blue)">'+parsed.teams.length+'</div><div style="font-size:0.75rem;color:var(--text-muted)">Ομάδες</div></div>'
+        +'<div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--green)">'+totalPaid+'</div><div style="font-size:0.75rem;color:var(--text-muted)">Πληρωμές</div></div>'
+        +'</div>';
+      document.getElementById('import-preview').style.display='block';
+    }catch(err){toast('Σφάλμα ανάγνωσης','❌');}
+  };
+  reader.readAsText(file);
+}
+async function confirmImport(){
+  if(!importedData){toast('Δεν υπάρχουν δεδομένα','⚠️');return;}
+  if(!confirm('Θα αντικατασταθούν ΟΛΕΣ οι εγγραφές. Συνέχεια;'))return;
+  try{
+    await api('POST','/restore',importedData);
+    importedData=null;
+    document.getElementById('import-file').value='';
+    document.getElementById('import-filename').textContent='Δεν έχει επιλεγεί αρχείο';
+    document.getElementById('import-preview').style.display='none';
+    closeModal('backup');
+    setLoading(true);
+    await loadAll();
+    setLoading(false);
+    updateGlobalTeamSel();populateTeamSelects();syncTeamFilters();
+    await initDashboard();updateNotifBadge();
+    toast('Δεδομένα επαναφέρθηκαν!','✅');
+  }catch(e){toast(e.message,'❌');}
+}
+
+// ═══════════════════════════════════
+// INIT
+// ═══════════════════════════════════
+(async function init(){
+  setLoading(true);
+  try{
+    await loadAll();
+  }catch(e){
+    document.getElementById('global-loading').innerHTML='<div style="text-align:center;color:var(--red)"><div style="font-size:2rem">⚠️</div><p style="margin-top:0.5rem">Δεν ήταν δυνατή η σύνδεση με τον server.</p></div>';
+    return;
+  }
+  setLoading(false);
+  updateGlobalTeamSel();
+  populateTeamSelects();
+  syncTeamFilters();
+  await initDashboard();
+  updateNotifBadge();
+})();
+
+</script>
+</body>
+</html>

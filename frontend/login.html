@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HoopsPay — Σύνδεση</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07090f;
+  --s1: #0e1118;
+  --s2: #141824;
+  --border: #232a3d;
+  --orange: #ff6b00;
+  --orange2: #ff8c38;
+  --orange-dim: rgba(255,107,0,0.1);
+  --orange-glow: rgba(255,107,0,0.3);
+  --red: #ff4444;
+  --text: #dce4f5;
+  --text-muted: #5a6a8a;
+  --radius: 14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Outfit',sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.login-card {
+  background:var(--s1);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:2.5rem 2rem;
+  width:100%;
+  max-width:380px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+}
+.logo {
+  text-align:center;
+  margin-bottom:2rem;
+}
+.logo .icon { font-size:2.5rem; display:block; margin-bottom:0.5rem; }
+.logo h1 {
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:2rem; font-weight:800;
+  letter-spacing:1px;
+  background:linear-gradient(135deg,var(--orange),var(--orange2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.logo small { font-size:0.75rem; color:var(--text-muted); letter-spacing:0.5px; }
+.field { margin-bottom:1.25rem; }
+.field label {
+  display:block;
+  font-size:0.8rem;
+  font-weight:600;
+  color:var(--text-muted);
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+  margin-bottom:0.5rem;
+}
+.field input {
+  width:100%;
+  background:var(--s2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:0.75rem 1rem;
+  color:var(--text);
+  font-family:'Outfit',sans-serif;
+  font-size:0.95rem;
+  outline:none;
+  transition:border-color 0.2s;
+}
+.field input:focus { border-color:var(--orange); }
+.btn-login {
+  width:100%;
+  background:var(--orange);
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  padding:0.85rem;
+  font-family:'Outfit',sans-serif;
+  font-size:1rem;
+  font-weight:600;
+  cursor:pointer;
+  transition:background 0.2s, box-shadow 0.2s;
+  margin-top:0.5rem;
+}
+.btn-login:hover { background:var(--orange2); box-shadow:0 0 20px var(--orange-glow); }
+.btn-login:disabled { opacity:0.6; cursor:not-allowed; }
+.error {
+  background:rgba(255,68,68,0.1);
+  border:1px solid rgba(255,68,68,0.3);
+  border-radius:8px;
+  padding:0.65rem 1rem;
+  font-size:0.85rem;
+  color:var(--red);
+  margin-bottom:1rem;
+  display:none;
+}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo">
+    <span class="icon">🏀</span>
+    <h1>HoopsPay</h1>
+    <small>Basketball Academy</small>
+  </div>
+
+  <div class="error" id="error-msg"></div>
+
+  <form id="login-form" onsubmit="doLogin(event)">
+    <div class="field">
+      <label>Όνομα χρήστη</label>
+      <input type="text" id="username" autocomplete="username" required autofocus>
+    </div>
+    <div class="field">
+      <label>Κωδικός</label>
+      <input type="password" id="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn-login" id="login-btn">Σύνδεση</button>
+  </form>
+</div>
+
+<script>
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('error-msg');
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Σύνδεση...';
+
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value
+      })
+    });
+    if (r.ok) {
+      window.location.href = '/';
+    } else {
+      const data = await r.json().catch(() => ({}));
+      err.textContent = data.error || 'Λάθος στοιχεία σύνδεσης';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Σύνδεση';
+    }
+  } catch {
+    err.textContent = 'Δεν ήταν δυνατή η σύνδεση με τον server.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Σύνδεση';
+  }
+}
+</script>
+</body>
+</html>
