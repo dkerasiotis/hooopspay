@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HoopsPay — Διαχείριση Πληρωμών Μπάσκετ</title>
+<title>HoopsPay — Διαχείριση Πληρωμών</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -295,13 +295,13 @@ tr:hover td{background:rgba(255,107,0,0.03);}
   <div class="sidebar-logo">
     <span class="icon">🏀</span>
     <h1>HoopsPay</h1>
-    <small>Basketball Academy</small>
+    <small>Διαχείριση Πληρωμών</small>
   </div>
 
   <div class="team-selector">
-    <label>Ενεργή Ομάδα</label>
+    <label>Ενεργή Δραστηριότητα</label>
     <select class="team-sel" id="global-team" onchange="onTeamChange()">
-      <option value="all">📋 Όλες οι Ομάδες</option>
+      <option value="all">📋 Όλες</option>
     </select>
   </div>
 
@@ -316,9 +316,12 @@ tr:hover td{background:rgba(255,107,0,0.03);}
   <div class="nav-item" onclick="navTo('history',this)"><span class="nav-icon">📋</span><span>Ιστορικό</span></div>
 
   <div class="sidebar-section">Ρυθμίσεις</div>
-  <div class="nav-item" onclick="navTo('teams',this)"><span class="nav-icon">🏆</span><span>Ομάδες</span></div>
+  <div class="nav-item" onclick="navTo('teams',this)"><span class="nav-icon">🎯</span><span>Δραστηριότητες</span></div>
+  <div class="nav-item" onclick="navTo('account',this)"><span class="nav-icon">🔑</span><span>Λογαριασμός</span></div>
+  <div class="nav-item admin-only" onclick="navTo('users',this)" style="display:none"><span class="nav-icon">👤</span><span>Χρήστες</span></div>
 
   <div style="margin-top:auto;padding:1rem 0.75rem;border-top:1px solid var(--border);">
+    <div style="padding:0.4rem 1.25rem;font-size:0.72rem;color:var(--text-dim)" id="sidebar-user"></div>
     <div class="nav-item" onclick="doLogout()" style="color:var(--text-muted);">
       <span class="nav-icon">🚪</span><span>Αποσύνδεση</span>
     </div>
@@ -350,7 +353,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
           <div class="chart-wrap"><canvas id="chart-monthly"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Ανά Ομάδα — Τρέχων Μήνας</h3>
+          <h3>Ανά Δραστηριότητα — Τρέχων Μήνας</h3>
           <div class="chart-wrap"><canvas id="chart-teams"></canvas></div>
         </div>
       </div>
@@ -362,7 +365,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
           </div>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Μαθητής</th><th>Ομάδα</th><th>Κατάσταση</th><th>Ημ/νία</th><th>Αμοιβή Δ.</th></tr></thead>
+          <thead><tr><th>Μαθητής</th><th>Δραστηριότητα</th><th>Κατάσταση</th><th>Ημ/νία</th><th>Αμοιβή Δ.</th></tr></thead>
           <tbody id="dash-recent"></tbody>
         </table></div>
       </div>
@@ -381,7 +384,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
           <option value="all">Όλοι</option><option value="paid">Πληρωμένοι</option><option value="unpaid">Ανεξόφλητοι</option>
         </select>
         <select id="pay-filter-team" onchange="renderPayments()" style="width:auto">
-          <option value="all">Όλες Ομάδες</option>
+          <option value="all">Όλες Δραστ.</option>
         </select>
         <button class="btn btn-ghost btn-sm" onclick="markAllPaid()">✅ Όλοι Πληρωμένοι</button>
       </div>
@@ -394,7 +397,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
           <div style="font-size:0.8rem;color:var(--text-muted)" id="pay-count-info"></div>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Μαθητής</th><th>Ομάδα</th><th>Κατάσταση</th><th>Ημ/νία</th><th>Σημείωση</th><th>Ενέργεια</th></tr></thead>
+          <thead><tr><th>Μαθητής</th><th>Δραστηριότητα</th><th>Κατάσταση</th><th>Ημ/νία</th><th>Σημείωση</th><th>Ενέργεια</th></tr></thead>
           <tbody id="pay-body"></tbody>
         </table></div>
       </div>
@@ -404,7 +407,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
     <div class="page" id="page-students">
       <div class="search-bar" style="margin-bottom:1rem;">
         <input type="text" placeholder="🔍 Αναζήτηση..." id="stu-search" oninput="renderStudents()" style="flex:1;max-width:220px;">
-        <select id="stu-filter-team" onchange="renderStudents()" style="width:auto"><option value="all">Όλες Ομάδες</option></select>
+        <select id="stu-filter-team" onchange="renderStudents()" style="width:auto"><option value="all">Όλες Δραστ.</option></select>
         <select id="stu-filter-active" onchange="renderStudents()" style="width:auto">
           <option value="active">✅ Ενεργοί</option>
           <option value="inactive">⏸ Ανενεργοί</option>
@@ -418,7 +421,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
           <div style="font-size:0.8rem;color:var(--text-muted)" id="stu-count"></div>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Όνομα</th><th>Ομάδα</th><th>Τηλέφωνο</th><th>Εγγραφή</th><th>Σύνολο Πληρωμών</th><th>Τελευταία Πληρωμή</th><th>Κατάσταση</th><th>Ενέργειες</th></tr></thead>
+          <thead><tr><th>Όνομα</th><th>Δραστηριότητα</th><th>Τηλέφωνο</th><th>Εγγραφή</th><th>Σύνολο Πληρωμών</th><th>Τελευταία Πληρωμή</th><th>Κατάσταση</th><th>Ενέργειες</th></tr></thead>
           <tbody id="stu-body"></tbody>
         </table></div>
       </div>
@@ -428,7 +431,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
     <div class="page" id="page-charts">
       <div class="search-bar" style="margin-bottom:1rem;">
         <select id="chart-year" onchange="renderCharts()" style="width:auto"></select>
-        <select id="chart-team-filter" onchange="renderCharts()" style="width:auto"><option value="all">Όλες Ομάδες</option></select>
+        <select id="chart-team-filter" onchange="renderCharts()" style="width:auto"><option value="all">Όλες Δραστ.</option></select>
       </div>
       <div class="chart-grid">
         <div class="chart-card" style="grid-column:1/-1">
@@ -440,7 +443,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
           <div class="chart-wrap"><canvas id="chart-pct"></canvas></div>
         </div>
         <div class="chart-card">
-          <h3>Σύγκριση Ομάδων</h3>
+          <h3>Σύγκριση Δραστηριοτήτων</h3>
           <div class="chart-wrap"><canvas id="chart-compare"></canvas></div>
         </div>
       </div>
@@ -450,7 +453,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
     <div class="page" id="page-teacher">
       <div class="search-bar" style="margin-bottom:1rem;">
         <select id="teach-year" onchange="renderTeacher()" style="width:auto"></select>
-        <select id="teach-team" onchange="renderTeacher()" style="width:auto"><option value="all">Όλες Ομάδες</option></select>
+        <select id="teach-team" onchange="renderTeacher()" style="width:auto"><option value="all">Όλες Δραστ.</option></select>
       </div>
       <div class="stats-grid" id="teach-stats"></div>
       <div class="card">
@@ -466,7 +469,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
     <div class="page" id="page-history">
       <div class="search-bar" style="margin-bottom:1rem;">
         <select id="hist-student" onchange="renderHistory()" style="width:auto"><option value="all">Όλοι Μαθητές</option></select>
-        <select id="hist-team" onchange="renderHistory()" style="width:auto"><option value="all">Όλες Ομάδες</option></select>
+        <select id="hist-team" onchange="renderHistory()" style="width:auto"><option value="all">Όλες Δραστ.</option></select>
         <select id="hist-from" onchange="renderHistory()" style="width:auto"></select>
         <span style="color:var(--text-muted);font-size:0.8rem">έως</span>
         <select id="hist-to" onchange="renderHistory()" style="width:auto"></select>
@@ -477,19 +480,19 @@ tr:hover td{background:rgba(255,107,0,0.03);}
           <div style="font-size:0.8rem;color:var(--text-muted)" id="hist-info"></div>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Μήνας</th><th>Μαθητής</th><th>Ομάδα</th><th>Ημ/νία Πληρωμής</th><th>Ποσό</th><th>Δάσκαλος</th><th>Σύλλογος</th><th>Σημείωση</th></tr></thead>
+          <thead><tr><th>Μήνας</th><th>Μαθητής</th><th>Δραστηριότητα</th><th>Ημ/νία Πληρωμής</th><th>Ποσό</th><th>Δάσκαλος</th><th>Σύλλογος</th><th>Σημείωση</th></tr></thead>
           <tbody id="hist-body"></tbody>
         </table></div>
       </div>
     </div>
 
-    <!-- ══ TEAMS ══ -->
+    <!-- ══ TEAMS / ACTIVITIES ══ -->
     <div class="page" id="page-teams">
       <div class="card" style="max-width:500px;margin-bottom:1rem">
-        <div class="card-header"><div class="card-title">➕ Νέα Ομάδα</div></div>
+        <div class="card-header"><div class="card-title">➕ Νέα Δραστηριότητα</div></div>
         <div style="padding:1.25rem">
           <div class="form-row">
-            <div class="form-group"><label>Όνομα Ομάδας *</label><input type="text" id="team-name" placeholder="π.χ. Παιδικό Τμήμα"></div>
+            <div class="form-group"><label>Όνομα Δραστηριότητας *</label><input type="text" id="team-name" placeholder="π.χ. Παιδικό Τμήμα"></div>
             <div class="form-group"><label>Χρώμα</label><input type="color" id="team-color" value="#4d9fff" style="width:100%;height:38px;padding:2px 4px;cursor:pointer;"></div>
           </div>
           <div class="form-row" style="margin-top:0.5rem">
@@ -497,14 +500,54 @@ tr:hover td{background:rgba(255,107,0,0.03);}
             <div class="form-group"><label>Αμοιβή Δασκάλου (€)</label><input type="number" id="team-trate" value="8" min="0" step="0.5"></div>
             <div class="form-group"><label>Έσοδα Συλλόγου (€)</label><input type="number" id="team-crate" value="2" min="0" step="0.5"></div>
           </div>
-          <button class="btn btn-primary" onclick="addTeam()">Αποθήκευση Ομάδας</button>
+          <button class="btn btn-primary" onclick="addTeam()">Αποθήκευση</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-header"><div class="card-title">Ομάδες</div></div>
+        <div class="card-header"><div class="card-title">Δραστηριότητες</div></div>
         <div class="table-wrap"><table>
           <thead><tr><th>Χρώμα</th><th>Όνομα</th><th>Μαθητές</th><th>Συνδρομή</th><th>Δάσκαλος</th><th>Σύλλογος</th><th>Ενέργειες</th></tr></thead>
           <tbody id="teams-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ══ ACCOUNT ══ -->
+    <div class="page" id="page-account">
+      <div class="card" style="max-width:450px">
+        <div class="card-header"><div class="card-title">🔑 Αλλαγή Κωδικού</div></div>
+        <div style="padding:1.25rem">
+          <div class="form-group"><label>Τρέχων Κωδικός</label><input type="password" id="cp-current"></div>
+          <div class="form-group"><label>Νέος Κωδικός</label><input type="password" id="cp-new"></div>
+          <div class="form-group"><label>Επιβεβαίωση Νέου Κωδικού</label><input type="password" id="cp-confirm"></div>
+          <button class="btn btn-primary" onclick="changePassword()">Αλλαγή Κωδικού</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ USERS (admin only) ══ -->
+    <div class="page" id="page-users">
+      <div class="card" style="max-width:500px;margin-bottom:1rem">
+        <div class="card-header"><div class="card-title">➕ Νέος Χρήστης</div></div>
+        <div style="padding:1.25rem">
+          <div class="form-row">
+            <div class="form-group"><label>Username *</label><input type="text" id="nu-username" placeholder="username"></div>
+            <div class="form-group"><label>Εμφανιζόμενο Όνομα</label><input type="text" id="nu-display" placeholder="Όνομα"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Κωδικός *</label><input type="password" id="nu-password"></div>
+            <div class="form-group"><label>Ρόλος</label>
+              <select id="nu-role"><option value="user">Χρήστης</option><option value="admin">Admin</option></select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addUser()">Δημιουργία Χρήστη</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Χρήστες</div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Username</th><th>Όνομα</th><th>Ρόλος</th><th>Ενέργειες</th></tr></thead>
+          <tbody id="users-body"></tbody>
         </table></div>
       </div>
     </div>
@@ -528,7 +571,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
     <div class="form-group"><label>Email</label><input type="email" id="as-email" placeholder="email@..."></div>
   </div>
   <div class="form-row">
-    <div class="form-group"><label>Ομάδα *</label><select id="as-team"></select></div>
+    <div class="form-group"><label>Δραστηριότητα *</label><select id="as-team"></select></div>
     <div class="form-group"><label>Ημ. Εγγραφής</label><input type="date" id="as-date"></div>
   </div>
   <div class="form-group"><label>Σημειώσεις</label><textarea id="as-notes" placeholder="Προαιρετικά..."></textarea></div>
@@ -552,7 +595,7 @@ tr:hover td{background:rgba(255,107,0,0.03);}
     <div class="form-group"><label>Τηλέφωνο</label><input type="text" id="es-phone"></div>
     <div class="form-group"><label>Email</label><input type="email" id="es-email"></div>
   </div>
-  <div class="form-group"><label>Ομάδα</label><select id="es-team"></select></div>
+  <div class="form-group"><label>Δραστηριότητα</label><select id="es-team"></select></div>
   <div class="form-group"><label>Σημειώσεις</label><textarea id="es-notes"></textarea></div>
   <div class="modal-actions">
     <button class="btn btn-ghost" onclick="closeModal('editStudent')">Άκυρο</button>
@@ -635,6 +678,7 @@ let chartMonthly=null,chartTeams=null,chartIncome=null,chartPct=null,chartCompar
 
 // In-memory cache
 let cache = { teams:[], students:[], payments:{}, teacherPayments:{} };
+let currentUser = null;
 
 async function api(method, path, body) {
   const opts = { method, headers: {'Content-Type':'application/json'} };
@@ -695,7 +739,8 @@ function isRegisteredForMonth(s, mk) {
 // ═══════════════════════════════════
 const pageTitles={
   dashboard:'📊 Dashboard',payments:'💶 Πληρωμές Μήνα',students:'👥 Μαθητές',
-  charts:'📈 Γραφήματα',teacher:'👨‍🏫 Αναφορά Δασκάλου',history:'📋 Ιστορικό',teams:'🏆 Ομάδες'
+  charts:'📈 Γραφήματα',teacher:'👨‍🏫 Αναφορά Δασκάλου',history:'📋 Ιστορικό',
+  teams:'🎯 Δραστηριότητες',account:'🔑 Λογαριασμός',users:'👤 Διαχείριση Χρηστών'
 };
 function navTo(p,el){
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
@@ -711,6 +756,7 @@ function navTo(p,el){
   if(p==='teacher')initTeacher();
   if(p==='history')initHistory();
   if(p==='teams')renderTeams();
+  if(p==='users'&&currentUser?.role==='admin')loadUsers();
 }
 
 // ═══════════════════════════════════
@@ -751,13 +797,13 @@ function populateSel(selId,opts,all='Όλοι'){
 }
 function updateGlobalTeamSel(){
   const sel=document.getElementById('global-team');
-  sel.innerHTML=`<option value="all">📋 Όλες οι Ομάδες</option>`+
+  sel.innerHTML=`<option value="all">📋 Όλες</option>`+
     cache.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
 }
 function onTeamChange(){ if(currentPage==='payments')renderPayments(); }
 function syncTeamFilters(){
   const teamOpts=cache.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
-  ['pay-filter-team','stu-filter-team','chart-team-filter','teach-team','hist-team'].forEach(id=>populateSel(id,teamOpts,'Όλες Ομάδες'));
+  ['pay-filter-team','stu-filter-team','chart-team-filter','teach-team','hist-team'].forEach(id=>populateSel(id,teamOpts,'Όλες Δραστ.'));
 }
 
 // ═══════════════════════════════════
@@ -778,20 +824,20 @@ async function addTeam(){
     document.getElementById('team-trate').value='8';
     document.getElementById('team-crate').value='2';
     renderTeams();updateGlobalTeamSel();populateTeamSelects();syncTeamFilters();
-    toast(`Ομάδα "${name}" προστέθηκε!`);
+    toast(`Δραστηριότητα "${name}" προστέθηκε!`);
   }catch(e){toast(e.message,'❌');}
 }
 async function deleteTeam(id){
-  if(!confirm('Διαγραφή ομάδας;'))return;
+  if(!confirm('Διαγραφή δραστηριότητας;'))return;
   try{
     await api('DELETE',`/teams/${id}`);
     cache.teams=cache.teams.filter(t=>t.id!==id);
-    renderTeams();updateGlobalTeamSel();syncTeamFilters();toast('Ομάδα διαγράφηκε','🗑');
+    renderTeams();updateGlobalTeamSel();syncTeamFilters();toast('Δραστηριότητα διαγράφηκε','🗑');
   }catch(e){toast(e.message,'❌');}
 }
 function renderTeams(){
   const tbody=document.getElementById('teams-body');
-  if(!cache.teams.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="ei">🏆</div><p>Δεν υπάρχουν ομάδες</p></div></td></tr>`;return;}
+  if(!cache.teams.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="ei">🎯</div><p>Δεν υπάρχουν δραστηριότητες</p></div></td></tr>`;return;}
   tbody.innerHTML=cache.teams.map(t=>{
     const count=cache.students.filter(s=>s.team_id===t.id||s.teamId===t.id).length;
     const r=t.rate!=null?t.rate:10, tr=t.t_rate!=null?t.t_rate:8, cr=t.c_rate!=null?t.c_rate:2;
@@ -813,7 +859,7 @@ function renderTeams(){
 async function editTeamRates(id){
   const t=cache.teams.find(x=>x.id===id); if(!t)return;
   const r=t.rate!=null?t.rate:10, tr=t.t_rate!=null?t.t_rate:8, cr=t.c_rate!=null?t.c_rate:2;
-  const name=prompt('Όνομα Ομάδας:',t.name); if(!name)return;
+  const name=prompt('Όνομα Δραστηριότητας:',t.name); if(!name)return;
   const rate=parseFloat(prompt('Συνδρομή (€):',r)); if(isNaN(rate))return;
   const t_rate=parseFloat(prompt('Αμοιβή Δασκάλου (€):',tr)); if(isNaN(t_rate))return;
   const c_rate=parseFloat(prompt('Έσοδα Συλλόγου (€):',cr)); if(isNaN(c_rate))return;
@@ -821,7 +867,7 @@ async function editTeamRates(id){
     await api('PUT',`/teams/${id}`,{name,color:t.color,rate,t_rate,c_rate});
     Object.assign(t,{name,rate,t_rate,c_rate});
     renderTeams();updateGlobalTeamSel();syncTeamFilters();
-    toast('Ομάδα ενημερώθηκε!');
+    toast('Δραστηριότητα ενημερώθηκε!');
   }catch(e){toast(e.message,'❌');}
 }
 
@@ -1114,7 +1160,7 @@ async function refreshDashboard(){
     <div class="stat-card" style="--accent:var(--orange)">
       <div class="stat-label">Ενεργοί Μαθητές</div>
       <div class="stat-value">${total}</div>
-      <div class="stat-sub">${cache.teams.length} ομάδες · ${cache.students.length-total} ανενεργοί</div>
+      <div class="stat-sub">${cache.teams.length} δραστηριότητες · ${cache.students.length-total} ανενεργοί</div>
     </div>
     <div class="stat-card" style="--accent:var(--green)">
       <div class="stat-label">Πληρωμένοι</div>
@@ -1463,7 +1509,7 @@ function exportCSV(){
   });
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`basketball_${mk}.csv`;a.click();
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`payments_${mk}.csv`;a.click();
   toast('Εξαγωγή CSV!','⬇');
 }
 function printReport(){ window.print(); }
@@ -1495,7 +1541,7 @@ function previewImport(e){
       document.getElementById('import-info').innerHTML=
         '<div style="display:flex;gap:1.5rem;justify-content:center">'
         +'<div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--orange)">'+parsed.students.length+'</div><div style="font-size:0.75rem;color:var(--text-muted)">Μαθητές</div></div>'
-        +'<div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--blue)">'+parsed.teams.length+'</div><div style="font-size:0.75rem;color:var(--text-muted)">Ομάδες</div></div>'
+        +'<div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--blue)">'+parsed.teams.length+'</div><div style="font-size:0.75rem;color:var(--text-muted)">Δραστηριότητες</div></div>'
         +'<div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:var(--green)">'+totalPaid+'</div><div style="font-size:0.75rem;color:var(--text-muted)">Πληρωμές</div></div>'
         +'</div>';
       document.getElementById('import-preview').style.display='block';
@@ -1523,17 +1569,98 @@ async function confirmImport(){
 }
 
 // ═══════════════════════════════════
+// ACCOUNT / PASSWORD CHANGE
+// ═══════════════════════════════════
+async function changePassword(){
+  const cur=document.getElementById('cp-current').value;
+  const np=document.getElementById('cp-new').value;
+  const conf=document.getElementById('cp-confirm').value;
+  if(!cur||!np){toast('Συμπλήρωσε όλα τα πεδία','⚠️');return;}
+  if(np!==conf){toast('Οι κωδικοί δεν ταιριάζουν','⚠️');return;}
+  try{
+    await api('POST','/change-password',{currentPassword:cur,newPassword:np});
+    document.getElementById('cp-current').value='';
+    document.getElementById('cp-new').value='';
+    document.getElementById('cp-confirm').value='';
+    toast('Ο κωδικός άλλαξε!');
+  }catch(e){toast(e.message,'❌');}
+}
+
+// ═══════════════════════════════════
+// USER MANAGEMENT (admin only)
+// ═══════════════════════════════════
+let usersCache=[];
+async function loadUsers(){
+  try{
+    usersCache=await api('GET','/users');
+    renderUsers();
+  }catch(e){toast(e.message,'❌');}
+}
+function renderUsers(){
+  const tbody=document.getElementById('users-body');
+  if(!usersCache.length){tbody.innerHTML='<tr><td colspan="4"><div class="empty-state"><p>Δεν υπάρχουν χρήστες</p></div></td></tr>';return;}
+  tbody.innerHTML=usersCache.map(u=>`<tr>
+    <td><strong>${u.username}</strong></td>
+    <td>${u.display_name||'—'}</td>
+    <td><span class="badge" style="background:${u.role==='admin'?'var(--orange-dim)':'var(--blue-dim)'};color:${u.role==='admin'?'var(--orange)':'var(--blue)'}">${u.role}</span></td>
+    <td><div style="display:flex;gap:0.35rem">
+      <button class="btn btn-ghost btn-sm" onclick="resetUserPass('${u.id}','${u.username}')">🔑 Reset</button>
+      ${u.id!==currentUser?.id?`<button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}','${u.username}')">🗑</button>`:''}
+    </div></td>
+  </tr>`).join('');
+}
+async function addUser(){
+  const username=document.getElementById('nu-username').value.trim();
+  const password=document.getElementById('nu-password').value;
+  const displayName=document.getElementById('nu-display').value.trim();
+  const role=document.getElementById('nu-role').value;
+  if(!username||!password){toast('Συμπλήρωσε username και password','⚠️');return;}
+  try{
+    const u=await api('POST','/users',{username,password,displayName,role});
+    usersCache.push(u);
+    renderUsers();
+    document.getElementById('nu-username').value='';
+    document.getElementById('nu-password').value='';
+    document.getElementById('nu-display').value='';
+    toast(`Χρήστης "${username}" δημιουργήθηκε!`);
+  }catch(e){toast(e.message,'❌');}
+}
+async function deleteUser(id,name){
+  if(!confirm(`Διαγραφή χρήστη "${name}";`))return;
+  try{
+    await api('DELETE',`/users/${id}`);
+    usersCache=usersCache.filter(u=>u.id!==id);
+    renderUsers();
+    toast('Χρήστης διαγράφηκε','🗑');
+  }catch(e){toast(e.message,'❌');}
+}
+async function resetUserPass(id,name){
+  const np=prompt(`Νέος κωδικός για "${name}":`);
+  if(!np)return;
+  try{
+    await api('POST',`/users/${id}/reset-password`,{newPassword:np});
+    toast(`Κωδικός για "${name}" άλλαξε!`);
+  }catch(e){toast(e.message,'❌');}
+}
+
+// ═══════════════════════════════════
 // INIT
 // ═══════════════════════════════════
 (async function init(){
   setLoading(true);
   try{
+    currentUser=await api('GET','/me');
     await loadAll();
   }catch(e){
     document.getElementById('global-loading').innerHTML='<div style="text-align:center;color:var(--red)"><div style="font-size:2rem">⚠️</div><p style="margin-top:0.5rem">Δεν ήταν δυνατή η σύνδεση με τον server.</p></div>';
     return;
   }
   setLoading(false);
+  // Show admin-only elements
+  if(currentUser.role==='admin'){
+    document.querySelectorAll('.admin-only').forEach(el=>el.style.display='');
+  }
+  document.getElementById('sidebar-user').textContent=`👤 ${currentUser.displayName||currentUser.username}`;
   updateGlobalTeamSel();
   populateTeamSelects();
   syncTeamFilters();

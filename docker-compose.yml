@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   hooopspay:
     build: .
@@ -8,13 +6,12 @@ services:
     ports:
       - "5002:5002"
     volumes:
-      - hooopspay_data:/data  # Εδώ αποθηκεύεται η βάση SQLite
+      - hooopspay_data:/data
     environment:
       - PORT=5002
       - DB_PATH=/data/hooopspay.db
-      - ADMIN_USER=admin
-      - ADMIN_PASS=sEp@2103320800
       - SESSION_SECRET=80464ac893b2aa7cfad8b63afd1cb7719ee147cedeb3fcd63725e5fe10ca3120
+      - ADMIN_INITIAL_PASS=admin
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5002/api/health"]
       interval: 30s
