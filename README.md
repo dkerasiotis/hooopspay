@@ -1,37 +1,57 @@
-# 🏀 HoopsPay — Basketball Academy Payment Manager
+# HoopsPay — Διαχείριση Πληρωμών
 
-Πλήρης εφαρμογή διαχείρισης πληρωμών για σχολή μπάσκετ.  
+Εφαρμογή διαχείρισης πληρωμών για δραστηριότητες (αθλητικές, εκπαιδευτικές κ.λπ.).
 **Stack:** Node.js + Express + SQLite + Docker
 
 ---
 
-## 🚀 Γρήγορη Εκκίνηση
+## Χαρακτηριστικά
+
+- **Multi-user** — Πολλαπλοί χρήστες με ρόλους (admin / user)
+- **Δραστηριότητες** — Κάθε χρήστης βλέπει μόνο τις δικές του, ο admin βλέπει όλες
+- **Πληρωμές** — Μηνιαία παρακολούθηση, bulk πληρωμές, ιστορικό
+- **Αναφορές** — Dashboard, γραφήματα, αναφορά δασκάλου, export CSV
+- **Backup/Restore** — JSON export/import μέσω UI ή API
+- **Login** — Hashed passwords (bcrypt), session-based auth
+- **Docker** — Single container, SQLite σε persistent volume
+
+---
+
+## Γρήγορη Εκκίνηση
 
 ### Προαπαιτούμενα
 - Docker & Docker Compose
 
 ### 1. Εκκίνηση
 ```bash
-git clone <repo> hooopspay
+git clone https://github.com/dkerasiotis/hooopspay.git
 cd hooopspay
 docker compose up -d --build
 ```
 
-Η εφαρμογή τρέχει στο: **http://localhost:3000**
+Η εφαρμογή τρέχει στο: **http://localhost:5002**
 
-### 2. Για να δεις τα logs
+### 2. Πρώτη Σύνδεση
+
+| Username | Password |
+|----------|----------|
+| `admin`  | `admin`  |
+
+> **Άλλαξε τον κωδικό αμέσως** από Ρυθμίσεις → Λογαριασμός.
+
+### 3. Logs
 ```bash
 docker compose logs -f
 ```
 
-### 3. Για να σταματήσεις
+### 4. Διακοπή
 ```bash
 docker compose down
 ```
 
 ---
 
-## 🔄 Ενημέρωση (όταν αλλάξει κώδικας)
+## Ενημέρωση (όταν αλλάξει κώδικας)
 ```bash
 docker compose down
 docker compose up -d --build
@@ -40,34 +60,43 @@ docker compose up -d --build
 
 ---
 
-## 💾 Backup & Restore
+## Χρήστες & Ρόλοι
 
-### Αυτόματο backup μέσω εφαρμογής
-Κουμπί **💾 Backup** → Κατέβασε JSON
+| Ρόλος | Δικαιώματα |
+|-------|------------|
+| **admin** | Βλέπει όλες τις δραστηριότητες, διαχείριση χρηστών, backup/restore |
+| **user** | Βλέπει μόνο τις δραστηριότητες που δημιούργησε |
 
-### Manual backup (από command line)
+- Δημιουργία χρηστών: Ρυθμίσεις → Χρήστες (μόνο admin)
+- Αλλαγή κωδικού: Ρυθμίσεις → Λογαριασμός (όλοι)
+- Reset κωδικού χρήστη: Ρυθμίσεις → Χρήστες → Reset (μόνο admin)
+
+---
+
+## Backup & Restore
+
+### Μέσω εφαρμογής
+Κουμπί **Backup** → Κατέβασε JSON / Εισαγωγή JSON
+
+### Μέσω command line
 ```bash
-# Αντιγραφή της βάσης
+# Αντιγραφή βάσης
 docker cp hooopspay:/data/hooopspay.db ./backup_$(date +%Y%m%d).db
 
-# Ή μέσω API
-curl http://localhost:3000/api/backup > backup_$(date +%Y%m%d).json
-```
-
-### Restore από JSON (command line)
-```bash
-curl -X POST http://localhost:3000/api/restore \
+# JSON backup μέσω API (απαιτεί auth cookie)
+curl -c cookies.txt -X POST http://localhost:5002/api/login \
   -H "Content-Type: application/json" \
-  -d @backup_2025-01-01.json
+  -d '{"username":"admin","password":"YOUR_PASS"}'
+
+curl -b cookies.txt http://localhost:5002/api/backup > backup.json
 ```
 
 ---
 
-## 🌐 Πρόσβαση από άλλες συσκευές (LAN)
+## Πρόσβαση από άλλες συσκευές (LAN)
 
-Αν ο server είναι στο τοπικό δίκτυο:
 ```
-http://<IP_SERVER>:3000
+http://<IP_SERVER>:5002
 ```
 
 Βρες την IP του server:
@@ -77,39 +106,35 @@ ip addr show | grep "inet " | grep -v 127.0.0.1
 
 ---
 
-## 🔒 Ασφάλεια (για πρόσβαση από internet)
+## Πρόσβαση από internet (Nginx + SSL)
 
-Αν θέλεις πρόσβαση έξω από το τοπικό δίκτυο, βάλε **Nginx reverse proxy + SSL**:
-
-```bash
-# Εγκατάσταση certbot
-apt install nginx certbot python3-certbot-nginx
-
-# Δημιουργία /etc/nginx/sites-available/hooopspay
+```nginx
 server {
     server_name yourdomain.com;
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:5002;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 }
-
-# SSL
+```
+```bash
 certbot --nginx -d yourdomain.com
 ```
 
 ---
 
-## 📁 Δομή Project
+## Δομή Project
 
 ```
 hooopspay/
 ├── backend/
-│   ├── server.js       # Express API + SQLite
+│   ├── server.js         # Express API + SQLite + Auth
 │   └── package.json
 ├── frontend/
-│   └── index.html      # Single-page app
+│   ├── index.html        # Single-page app
+│   ├── login.html        # Login page
+│   └── favicon.svg
 ├── Dockerfile
 ├── docker-compose.yml
 └── README.md
@@ -117,25 +142,11 @@ hooopspay/
 
 ---
 
-## 🔧 Environment Variables
+## Environment Variables
 
 | Variable | Default | Περιγραφή |
 |----------|---------|-----------|
-| `PORT` | `3000` | Port εφαρμογής |
+| `PORT` | `5002` | Port εφαρμογής |
 | `DB_PATH` | `/data/hooopspay.db` | Διαδρομή βάσης δεδομένων |
-
-Για να αλλάξεις port, επεξεργάσου το `docker-compose.yml`:
-```yaml
-ports:
-  - "8080:3000"   # Τώρα η εφαρμογή ανοίγει στο :8080
-```
-
----
-
-## 💡 Μεταφορά από HTML έκδοση (localStorage)
-
-Αν είχες δεδομένα στην παλιά HTML έκδοση:
-1. Άνοιξε την παλιά HTML
-2. Κουμπί **💾 Backup** → Κατέβασε JSON
-3. Άνοιξε τη νέα εφαρμογή (`http://localhost:3000`)
-4. Κουμπί **💾 Backup** → Εισαγωγή JSON → Επίλεξε αρχείο → ✅
+| `SESSION_SECRET` | `hoopspay-secret-key` | Secret για sessions |
+| `ADMIN_INITIAL_PASS` | `admin` | Αρχικός κωδικός admin (μόνο στο πρώτο boot) |
