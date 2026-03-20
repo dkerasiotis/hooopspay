@@ -500,6 +500,9 @@ tr:hover td{background:rgba(255,107,0,0.03);}
             <div class="form-group"><label>Αμοιβή Δασκάλου (€)</label><input type="number" id="team-trate" value="8" min="0" step="0.5"></div>
             <div class="form-group"><label>Έσοδα Συλλόγου (€)</label><input type="number" id="team-crate" value="2" min="0" step="0.5"></div>
           </div>
+          <div id="team-owner-row" class="form-row" style="margin-top:0.5rem;display:none">
+            <div class="form-group"><label>Ανάθεση σε χρήστη</label><select id="team-owner"><option value="">Εμένα (προεπιλογή)</option></select></div>
+          </div>
           <button class="btn btn-primary" onclick="addTeam()">Αποθήκευση</button>
         </div>
       </div>
@@ -816,13 +819,16 @@ async function addTeam(){
   const rate=parseFloat(document.getElementById('team-rate').value)||10;
   const t_rate=parseFloat(document.getElementById('team-trate').value)||8;
   const c_rate=parseFloat(document.getElementById('team-crate').value)||2;
+  const ownerSel=document.getElementById('team-owner');
+  const owner_id=ownerSel?ownerSel.value||undefined:undefined;
   try{
-    const t = await api('POST','/teams',{name,color,rate,t_rate,c_rate});
+    const t = await api('POST','/teams',{name,color,rate,t_rate,c_rate,owner_id});
     cache.teams.push(t);
     document.getElementById('team-name').value='';
     document.getElementById('team-rate').value='10';
     document.getElementById('team-trate').value='8';
     document.getElementById('team-crate').value='2';
+    if(ownerSel)ownerSel.value='';
     renderTeams();updateGlobalTeamSel();populateTeamSelects();syncTeamFilters();
     toast(`Δραστηριότητα "${name}" προστέθηκε!`);
   }catch(e){toast(e.message,'❌');}
@@ -863,9 +869,18 @@ async function editTeamRates(id){
   const rate=parseFloat(prompt('Συνδρομή (€):',r)); if(isNaN(rate))return;
   const t_rate=parseFloat(prompt('Αμοιβή Δασκάλου (€):',tr)); if(isNaN(t_rate))return;
   const c_rate=parseFloat(prompt('Έσοδα Συλλόγου (€):',cr)); if(isNaN(c_rate))return;
+  let owner_id;
+  if(currentUser?.role==='admin'){
+    const users=await api('GET','/users');
+    const currentOwner=t.owner_id||'';
+    const opts=users.map(u=>`${u.id} = ${u.display_name||u.username}${u.id===currentOwner?' (τρέχων)':''}`).join('\n');
+    const picked=prompt(`Ανάθεση σε χρήστη (ID):\n${opts}`,currentOwner);
+    if(picked!==null)owner_id=picked.trim()||undefined;
+  }
   try{
-    await api('PUT',`/teams/${id}`,{name,color:t.color,rate,t_rate,c_rate});
+    await api('PUT',`/teams/${id}`,{name,color:t.color,rate,t_rate,c_rate,owner_id});
     Object.assign(t,{name,rate,t_rate,c_rate});
+    if(owner_id)t.owner_id=owner_id;
     renderTeams();updateGlobalTeamSel();syncTeamFilters();
     toast('Δραστηριότητα ενημερώθηκε!');
   }catch(e){toast(e.message,'❌');}
@@ -1659,6 +1674,16 @@ async function resetUserPass(id,name){
   // Show admin-only elements
   if(currentUser.role==='admin'){
     document.querySelectorAll('.admin-only').forEach(el=>el.style.display='');
+    // Populate owner dropdown for activity assignment
+    try{
+      const users=await api('GET','/users');
+      const sel=document.getElementById('team-owner');
+      const row=document.getElementById('team-owner-row');
+      if(sel&&row){
+        row.style.display='';
+        users.forEach(u=>{const o=document.createElement('option');o.value=u.id;o.textContent=u.display_name||u.username;sel.appendChild(o);});
+      }
+    }catch(e){}
   }
   document.getElementById('sidebar-user').textContent=`👤 ${currentUser.displayName||currentUser.username}`;
   updateGlobalTeamSel();

@@ -253,27 +253,33 @@ app.get('/api/teams', (req, res) => {
 });
 
 app.post('/api/teams', (req, res) => {
-  const { id, name, color, rate, t_rate, c_rate } = req.body;
+  const { id, name, color, rate, t_rate, c_rate, owner_id } = req.body;
   if (!name) return res.status(400).json({ error: 'Απαιτείται όνομα δραστηριότητας' });
   const teamId = id || 't' + Date.now();
   const r = rate != null ? rate : 10;
   const tr = t_rate != null ? t_rate : 8;
   const cr = c_rate != null ? c_rate : 2;
+  const ownerId = (isAdmin(req) && owner_id) ? owner_id : req.user.id;
   db.prepare('INSERT INTO teams (id, name, color, rate, t_rate, c_rate, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(teamId, name, color || '#4d9fff', r, tr, cr, req.user.id);
-  res.json({ id: teamId, name, color, rate: r, t_rate: tr, c_rate: cr, owner_id: req.user.id });
+    .run(teamId, name, color || '#4d9fff', r, tr, cr, ownerId);
+  res.json({ id: teamId, name, color, rate: r, t_rate: tr, c_rate: cr, owner_id: ownerId });
 });
 
 app.put('/api/teams/:id', (req, res) => {
-  const { name, color, rate, t_rate, c_rate } = req.body;
+  const { name, color, rate, t_rate, c_rate, owner_id } = req.body;
   if (!name) return res.status(400).json({ error: 'Απαιτείται όνομα δραστηριότητας' });
   // Check ownership
   if (!isAdmin(req)) {
     const team = db.prepare('SELECT owner_id FROM teams WHERE id = ?').get(req.params.id);
     if (!team || team.owner_id !== req.user.id) return res.status(403).json({ error: 'Δεν έχεις δικαίωμα' });
   }
-  db.prepare('UPDATE teams SET name=?, color=?, rate=?, t_rate=?, c_rate=? WHERE id=?')
-    .run(name, color || '#4d9fff', rate != null ? rate : 10, t_rate != null ? t_rate : 8, c_rate != null ? c_rate : 2, req.params.id);
+  if (isAdmin(req) && owner_id) {
+    db.prepare('UPDATE teams SET name=?, color=?, rate=?, t_rate=?, c_rate=?, owner_id=? WHERE id=?')
+      .run(name, color || '#4d9fff', rate != null ? rate : 10, t_rate != null ? t_rate : 8, c_rate != null ? c_rate : 2, owner_id, req.params.id);
+  } else {
+    db.prepare('UPDATE teams SET name=?, color=?, rate=?, t_rate=?, c_rate=? WHERE id=?')
+      .run(name, color || '#4d9fff', rate != null ? rate : 10, t_rate != null ? t_rate : 8, c_rate != null ? c_rate : 2, req.params.id);
+  }
   res.json({ ok: true });
 });
 
