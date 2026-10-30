@@ -23,16 +23,24 @@
 ### Προαπαιτούμενα
 - Docker & Docker Compose
 
-### 1. Εκκίνηση
+### 1. Ρύθμιση secrets
 ```bash
 git clone https://github.com/dkerasiotis/hooopspay.git
 cd hooopspay
+cp .env.example .env
+echo "SESSION_SECRET=$(openssl rand -hex 32)" > .env
+```
+
+Το `.env` κρατά το `SESSION_SECRET` και **δεν ανεβαίνει στο git**. Χωρίς αυτό το `docker compose up` σταματά με σφάλμα.
+
+### 2. Εκκίνηση
+```bash
 docker compose up -d --build
 ```
 
 Η εφαρμογή τρέχει στο: **http://localhost:5002**
 
-### 2. Πρώτη Σύνδεση
+### 3. Πρώτη Σύνδεση
 
 | Username | Password |
 |----------|----------|
@@ -40,12 +48,12 @@ docker compose up -d --build
 
 > **Άλλαξε τον κωδικό αμέσως** από Ρυθμίσεις → Λογαριασμός.
 
-### 3. Logs
+### 4. Logs
 ```bash
 docker compose logs -f
 ```
 
-### 4. Διακοπή
+### 5. Διακοπή
 ```bash
 docker compose down
 ```
@@ -160,5 +168,5 @@ hooopspay/
 |----------|---------|-----------|
 | `PORT` | `5002` | Port εφαρμογής |
 | `DB_PATH` | `/data/hooopspay.db` | Διαδρομή βάσης δεδομένων |
-| `SESSION_SECRET` | `hoopspay-secret-key` | Secret για sessions |
+| `SESSION_SECRET` | — | Secret για sessions. **Υποχρεωτικό**, ορίζεται στο `.env` (δες `.env.example`). Αν αλλάξει, όλοι ξανασυνδέονται |
 | `ADMIN_INITIAL_PASS` | `admin` | Αρχικός κωδικός admin (μόνο στο πρώτο boot) |

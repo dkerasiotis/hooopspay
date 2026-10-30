@@ -4,6 +4,9 @@ data/
 *.db-shm
 *.db-wal
 
+# Μυστικά — ποτέ στο repo (δες .env.example)
+.env
+
 # Backups
 hooopspay_backup_*.json
 
