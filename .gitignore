@@ -1,0 +1,12 @@
+# Βάση δεδομένων — περιέχει προσωπικά στοιχεία μαθητών, ποτέ στο repo
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Backups
+hooopspay_backup_*.json
+
+# Node
+node_modules/
+npm-debug.log*

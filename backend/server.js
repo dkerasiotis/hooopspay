@@ -93,6 +93,14 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now')),
     UNIQUE(month_key)
   );
+
+  CREATE TABLE IF NOT EXISTS inactive_months (
+    team_id TEXT NOT NULL,
+    month_key TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (team_id, month_key),
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+  );
 `);
 
 // Migration: add rate columns to teams if missing
@@ -448,6 +456,45 @@ app.post('/api/teacher-payments', (req, res) => {
 });
 
 // ══════════════════════════════
+// INACTIVE MONTHS (μήνες χωρίς μαθήματα, ανά δραστηριότητα)
+// ══════════════════════════════
+app.get('/api/inactive-months', (req, res) => {
+  const rows = db.prepare('SELECT team_id, month_key FROM inactive_months ORDER BY month_key').all();
+  const tids = userTeamIds(req);
+  const result = {};
+  rows.forEach(r => {
+    if (tids && !tids.includes(r.team_id)) return;
+    if (!result[r.team_id]) result[r.team_id] = [];
+    result[r.team_id].push(r.month_key);
+  });
+  res.json(result);
+});
+
+app.post('/api/inactive-months', (req, res) => {
+  const { teamId, monthKey, inactive } = req.body;
+  if (!teamId || !monthKey) return res.status(400).json({ error: 'Απαιτείται δραστηριότητα και μήνας' });
+  if (!/^\d{4}-\d{2}$/.test(monthKey)) return res.status(400).json({ error: 'Μη έγκυρος μήνας' });
+  const team = db.prepare('SELECT owner_id FROM teams WHERE id = ?').get(teamId);
+  if (!team) return res.status(404).json({ error: 'Η δραστηριότητα δεν βρέθηκε' });
+  if (!isAdmin(req) && team.owner_id !== req.user.id) {
+    return res.status(403).json({ error: 'Δεν έχεις δικαίωμα' });
+  }
+  if (inactive) {
+    const { c } = db.prepare(`
+      SELECT COUNT(*) as c FROM payments p JOIN students s ON s.id = p.student_id
+      WHERE s.team_id = ? AND p.month_key = ? AND p.paid = 1
+    `).get(teamId, monthKey);
+    if (c > 0) {
+      return res.status(400).json({ error: `Ο μήνας έχει ${c} καταγεγραμμένες πληρωμές — αναίρεσέ τις πρώτα` });
+    }
+    db.prepare('INSERT OR IGNORE INTO inactive_months (team_id, month_key) VALUES (?, ?)').run(teamId, monthKey);
+  } else {
+    db.prepare('DELETE FROM inactive_months WHERE team_id = ? AND month_key = ?').run(teamId, monthKey);
+  }
+  res.json({ ok: true });
+});
+
+// ══════════════════════════════
 // BACKUP & RESTORE
 // ══════════════════════════════
 app.get('/api/backup', (req, res) => {
@@ -466,17 +513,24 @@ app.get('/api/backup', (req, res) => {
   tpRows.forEach(r => {
     teacherPayments[r.month_key] = { paid: r.paid === 1, date: r.pay_date, note: r.note };
   });
-  res.json({ teams, students, payments, teacherPayments, exportedAt: new Date().toISOString() });
+  const imRows = db.prepare('SELECT team_id, month_key FROM inactive_months ORDER BY month_key').all();
+  const inactiveMonths = {};
+  imRows.forEach(r => {
+    if (!inactiveMonths[r.team_id]) inactiveMonths[r.team_id] = [];
+    inactiveMonths[r.team_id].push(r.month_key);
+  });
+  res.json({ teams, students, payments, teacherPayments, inactiveMonths, exportedAt: new Date().toISOString() });
 });
 
 app.post('/api/restore', (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'Μόνο admin' });
-  const { teams, students, payments, teacherPayments } = req.body;
+  const { teams, students, payments, teacherPayments, inactiveMonths } = req.body;
   if (!teams || !students || !payments) return res.status(400).json({ error: 'Μη έγκυρο backup' });
 
   const restore = db.transaction(() => {
     db.prepare('DELETE FROM payments').run();
     db.prepare('DELETE FROM students').run();
+    db.prepare('DELETE FROM inactive_months').run();
     db.prepare('DELETE FROM teams').run();
     db.prepare('DELETE FROM teacher_payments').run();
 
@@ -497,6 +551,13 @@ app.post('/api/restore', (req, res) => {
       const insTP = db.prepare(`INSERT OR IGNORE INTO teacher_payments (month_key, paid, pay_date, note) VALUES (?, ?, ?, ?)`);
       Object.entries(teacherPayments).forEach(([mk, tp]) => {
         insTP.run(mk, tp.paid ? 1 : 0, tp.date || '', tp.note || '');
+      });
+    }
+
+    if (inactiveMonths) {
+      const insIM = db.prepare(`INSERT OR IGNORE INTO inactive_months (team_id, month_key) VALUES (?, ?)`);
+      Object.entries(inactiveMonths).forEach(([tid, mks]) => {
+        (mks || []).forEach(mk => insIM.run(tid, mk));
       });
     }
   });

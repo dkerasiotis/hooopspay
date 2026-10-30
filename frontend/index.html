@@ -256,6 +256,20 @@ tr:hover td{background:rgba(255,107,0,0.03);}
   background:var(--s3);color:var(--blue);
 }
 
+/* ── MONTH GRID (ανενεργοί μήνες) ── */
+.month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;}
+.month-cell{
+  display:flex;flex-direction:column;align-items:center;gap:0.2rem;
+  padding:0.6rem 0.3rem;border-radius:9px;cursor:pointer;
+  background:var(--s2);border:1px solid var(--border);
+  font-size:0.8rem;font-weight:600;transition:all 0.15s;
+}
+.month-cell:hover{border-color:var(--orange);}
+.month-cell small{font-size:0.95rem;line-height:1;}
+.month-cell.off{background:var(--red-dim);color:var(--red);border-color:var(--red);}
+.month-cell.locked{cursor:not-allowed;opacity:0.5;}
+.month-cell.locked:hover{border-color:var(--border);}
+
 /* ── PRINT ── */
 @media print{
   .sidebar,.topbar,.no-print{display:none!important;}
@@ -386,7 +400,8 @@ tr:hover td{background:rgba(255,107,0,0.03);}
         <select id="pay-filter-team" onchange="renderPayments()" style="width:auto">
           <option value="all">Όλες Δραστ.</option>
         </select>
-        <button class="btn btn-ghost btn-sm" onclick="markAllPaid()">✅ Όλοι Πληρωμένοι</button>
+        <button class="btn btn-ghost btn-sm" id="pay-markall-btn" onclick="markAllPaid()">✅ Όλοι Πληρωμένοι</button>
+        <button class="btn btn-ghost btn-sm" id="pay-monthoff-btn" onclick="toggleMonthOff()">🚫 Δεν έγιναν μαθήματα</button>
       </div>
 
       <div class="summary-strip" id="pay-summary"></div>
@@ -661,6 +676,24 @@ tr:hover td{background:rgba(255,107,0,0.03);}
 </div>
 </div>
 
+<!-- ══ MONTHS MODAL (μήνες χωρίς μαθήματα) ══ -->
+<div class="overlay" id="modal-months">
+<div class="modal" style="max-width:460px">
+  <h2>📅 Μήνες Δραστηριότητας</h2>
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">
+    <strong style="color:var(--text)" id="mm-team-name"></strong><br>
+    Κάνε κλικ σε έναν μήνα για να δηλώσεις ότι <strong style="color:var(--red)">δεν έγιναν μαθήματα</strong>.
+    Οι μήνες αυτοί δεν χρεώνονται στους μαθητές. Μήνες με καταγεγραμμένες πληρωμές (🔒) πρέπει πρώτα να αναιρεθούν.
+  </p>
+  <div class="form-group" style="max-width:150px">
+    <label>Έτος</label>
+    <select id="mm-year" onchange="renderMonthsGrid()"></select>
+  </div>
+  <div class="month-grid" id="mm-grid"></div>
+  <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('months')">Κλείσιμο</button></div>
+</div>
+</div>
+
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script>
@@ -680,7 +713,7 @@ let currentPage='dashboard';
 let chartMonthly=null,chartTeams=null,chartIncome=null,chartPct=null,chartCompare=null;
 
 // In-memory cache
-let cache = { teams:[], students:[], payments:{}, teacherPayments:{} };
+let cache = { teams:[], students:[], payments:{}, teacherPayments:{}, inactiveMonths:{} };
 let currentUser = null;
 
 async function api(method, path, body) {
@@ -698,16 +731,18 @@ async function doLogout() {
 }
 
 async function loadAll() {
-  const [teams, students, payments, teacherPayments] = await Promise.all([
+  const [teams, students, payments, teacherPayments, inactiveMonths] = await Promise.all([
     api('GET','/teams'),
     api('GET','/students'),
     api('GET','/payments'),
     api('GET','/teacher-payments'),
+    api('GET','/inactive-months'),
   ]);
   cache.teams = teams;
   cache.students = students;
   cache.payments = payments;
   cache.teacherPayments = teacherPayments;
+  cache.inactiveMonths = inactiveMonths;
 }
 
 // ═══════════════════════════════════
@@ -735,6 +770,29 @@ function isRegisteredForMonth(s, mk) {
   // regDate format: "YYYY-MM-DD", mk format: "YYYY-MM"
   const regMK = regDate.substring(0, 7); // "YYYY-MM"
   return mk >= regMK;
+}
+
+// ═══════════════════════════════════
+// INACTIVE MONTHS (μήνες χωρίς μαθήματα)
+// ═══════════════════════════════════
+// Έγιναν μαθήματα στη δραστηριότητα αυτόν τον μήνα;
+function isTeamMonthActive(teamId, mk){ return !(cache.inactiveMonths[teamId]||[]).includes(mk); }
+
+// Μετράει ο μαθητής για τον μήνα; (ενεργός + εγγεγραμμένος + έγιναν μαθήματα)
+function countsForMonth(s, mk){
+  return s.active!==false && isRegisteredForMonth(s, mk) && isTeamMonthActive(studentTeamId(s), mk);
+}
+
+// Είναι ο μήνας "κλειστός"; Με teamId='all' μόνο αν ΟΛΕΣ οι δραστηριότητες είναι κλειστές
+function isMonthOff(mk, teamId){
+  if(teamId && teamId!=='all') return !isTeamMonthActive(teamId, mk);
+  return cache.teams.length>0 && cache.teams.every(t=>!isTeamMonthActive(t.id, mk));
+}
+
+// Πληρωμένοι μαθητές της δραστηριότητας για τον μήνα — μπλοκάρει την απενεργοποίηση
+function paidCountForTeamMonth(teamId, mk){
+  const mo=cache.payments[mk]||{};
+  return cache.students.filter(s=>studentTeamId(s)===teamId&&mo[s.id]?.paid).length;
 }
 
 // ═══════════════════════════════════
@@ -838,6 +896,7 @@ async function deleteTeam(id){
   try{
     await api('DELETE',`/teams/${id}`);
     cache.teams=cache.teams.filter(t=>t.id!==id);
+    delete cache.inactiveMonths[id];
     renderTeams();updateGlobalTeamSel();syncTeamFilters();toast('Δραστηριότητα διαγράφηκε','🗑');
   }catch(e){toast(e.message,'❌');}
 }
@@ -847,6 +906,7 @@ function renderTeams(){
   tbody.innerHTML=cache.teams.map(t=>{
     const count=cache.students.filter(s=>s.team_id===t.id||s.teamId===t.id).length;
     const r=t.rate!=null?t.rate:10, tr=t.t_rate!=null?t.t_rate:8, cr=t.c_rate!=null?t.c_rate:2;
+    const offCount=(cache.inactiveMonths[t.id]||[]).length;
     return `<tr>
       <td><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${t.color}"></span></td>
       <td><strong>${t.name}</strong></td>
@@ -855,6 +915,7 @@ function renderTeams(){
       <td style="font-family:'JetBrains Mono';color:var(--orange)">${tr}€</td>
       <td style="font-family:'JetBrains Mono';color:var(--blue)">${cr}€</td>
       <td><div style="display:flex;gap:0.35rem">
+        <button class="btn btn-ghost btn-sm" title="Μήνες χωρίς μαθήματα" onclick="openMonthsModal('${t.id}')">📅${offCount?` <span style="color:var(--red)">${offCount}</span>`:''}</button>
         <button class="btn btn-ghost btn-sm" onclick="editTeamRates('${t.id}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="deleteTeam('${t.id}')">🗑</button>
       </div></td>
@@ -883,6 +944,47 @@ async function editTeamRates(id){
     if(owner_id)t.owner_id=owner_id;
     renderTeams();updateGlobalTeamSel();syncTeamFilters();
     toast('Δραστηριότητα ενημερώθηκε!');
+  }catch(e){toast(e.message,'❌');}
+}
+
+// ── Μήνες χωρίς μαθήματα, ανά δραστηριότητα ──
+let mmTeamId=null;
+
+function openMonthsModal(id){
+  const t=getTeam(id); if(!t)return;
+  mmTeamId=id;
+  document.getElementById('mm-team-name').textContent=t.name;
+  const now=new Date().getFullYear();
+  document.getElementById('mm-year').innerHTML=[now-1,now,now+1].map(y=>`<option value="${y}" ${y===now?'selected':''}>${y}</option>`).join('');
+  renderMonthsGrid();
+  openModal('months');
+}
+
+function renderMonthsGrid(){
+  const year=parseInt(document.getElementById('mm-year').value);
+  document.getElementById('mm-grid').innerHTML=MONTHS_SHORT.map((label,m)=>{
+    const mk=mKey(year,m);
+    const off=!isTeamMonthActive(mmTeamId,mk);
+    const paid=paidCountForTeamMonth(mmTeamId,mk);
+    const locked=!off&&paid>0;
+    const icon=off?'🚫':(locked?'🔒':'✅');
+    const title=off?'Δεν έγιναν μαθήματα — κλικ για ενεργοποίηση'
+      :(locked?`${paid} καταγεγραμμένες πληρωμές — αναίρεσέ τις πρώτα`:'Έγιναν μαθήματα — κλικ για απενεργοποίηση');
+    return `<div class="month-cell ${off?'off':''} ${locked?'locked':''}" title="${title}" onclick="toggleTeamMonth('${mk}',${locked})">
+      <small>${icon}</small>${label}
+    </div>`;
+  }).join('');
+}
+
+async function toggleTeamMonth(mk,locked){
+  if(locked){toast(`Ο μήνας έχει πληρωμές — αναίρεσέ τις πρώτα`,'🔒');return;}
+  const inactive=isTeamMonthActive(mmTeamId,mk);
+  try{
+    await api('POST','/inactive-months',{teamId:mmTeamId,monthKey:mk,inactive});
+    setInactiveMonthLocal(mmTeamId,mk,inactive);
+    renderMonthsGrid();renderTeams();updateNotifBadge();
+    if(currentPage==='dashboard')refreshDashboard();
+    toast(`${mLabel(mk)} — ${inactive?'δεν έγιναν μαθήματα':'έγιναν μαθήματα'}`,inactive?'🚫':'✅');
   }catch(e){toast(e.message,'❌');}
 }
 
@@ -994,6 +1096,7 @@ function renderStudents(){
     const isActive=s.active!==false;
     let total=0,lastPay='—';
     Object.entries(cache.payments).sort((a,b)=>b[0].localeCompare(a[0])).forEach(([mk,mo])=>{
+      if(!isTeamMonthActive(studentTeamId(s), mk))return;
       if(mo[s.id]?.paid){total+=sRate(s);if(lastPay==='—')lastPay=mLabel(mk);}
     });
     return `<tr style="${isActive?'':'opacity:0.55'}">
@@ -1055,9 +1158,11 @@ async function renderPayments(){
   const gtf=document.getElementById('global-team')?.value||'all';
   const mo=cache.payments[activePayMonth]||{};
 
+  const monthOff=isMonthOff(activePayMonth, payScopeTeam());
+  updateMonthOffBtn();
+
   let list=cache.students.filter(s=>{
-    if(s.active===false)return false;
-    if(!isRegisteredForMonth(s, activePayMonth))return false;
+    if(!countsForMonth(s, activePayMonth))return false;
     if(gtf!=='all'&&studentTeamId(s)!==gtf)return false;
     if(ft!=='all'&&studentTeamId(s)!==ft)return false;
     if(q&&!`${s.fname} ${s.lname}`.toLowerCase().includes(q))return false;
@@ -1066,19 +1171,23 @@ async function renderPayments(){
     return true;
   });
 
-  const paidStudents=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, activePayMonth)&&mo[s.id]?.paid&&(gtf==='all'||studentTeamId(s)===gtf));
+  const paidStudents=cache.students.filter(s=>countsForMonth(s, activePayMonth)&&mo[s.id]?.paid&&(gtf==='all'||studentTeamId(s)===gtf));
   const paidCount=paidStudents.length;
   const sumT=paidStudents.reduce((a,s)=>a+sTRate(s),0);
   const sumC=paidStudents.reduce((a,s)=>a+sCRate(s),0);
 
   document.getElementById('pay-card-title').textContent=`Κατάσταση — ${mLabel(activePayMonth)}`;
-  document.getElementById('pay-count-info').textContent=`${list.filter(s=>mo[s.id]?.paid).length}/${list.length} πληρωμένοι`;
-  document.getElementById('pay-summary').innerHTML=`
+  document.getElementById('pay-count-info').textContent=monthOff?'Δεν έγιναν μαθήματα':`${list.filter(s=>mo[s.id]?.paid).length}/${list.length} πληρωμένοι`;
+  document.getElementById('pay-summary').innerHTML=monthOff?`
+    <div class="summary-cell"><label>Πληρωμένοι</label><span>—</span></div>
+    <div class="summary-cell"><label>Αμοιβή Δασκάλου</label><span>—</span></div>
+    <div class="summary-cell"><label>Έσοδα Συλλόγου</label><span>—</span></div>`:`
     <div class="summary-cell"><label>Πληρωμένοι</label><span style="color:var(--green)">${paidCount}</span></div>
     <div class="summary-cell"><label>Αμοιβή Δασκάλου</label><span style="color:var(--orange)">${sumT}€</span></div>
     <div class="summary-cell"><label>Έσοδα Συλλόγου</label><span style="color:var(--blue)">${sumC}€</span></div>`;
 
   const tbody=document.getElementById('pay-body');
+  if(monthOff){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="ei">🚫</div><p>Δεν έγιναν μαθήματα — ${mLabel(activePayMonth)}</p><small style="color:var(--text-muted)">Κανένας μαθητής δεν χρωστά δίδακτρα για αυτόν τον μήνα</small></div></td></tr>`;return;}
   if(!cache.students.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="ei">👥</div><p>Πρόσθεσε μαθητές!</p></div></td></tr>`;return;}
   if(!list.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state"><div class="ei">🔍</div><p>Δεν βρέθηκαν αποτελέσματα</p></div></td></tr>`;return;}
 
@@ -1128,10 +1237,59 @@ async function unpay(sid){
   }catch(e){toast(e.message,'❌');}
 }
 
+// Σε ποια δραστηριότητα αναφέρεται η σελίδα Πληρωμών ('all' = όλες οι ορατές)
+function payScopeTeam(){
+  const ft=document.getElementById('pay-filter-team')?.value||'all';
+  if(ft!=='all')return ft;
+  return document.getElementById('global-team')?.value||'all';
+}
+
+function updateMonthOffBtn(){
+  const btn=document.getElementById('pay-monthoff-btn');
+  if(!btn)return;
+  const off=isMonthOff(activePayMonth, payScopeTeam());
+  btn.textContent=off?'✅ Έγιναν μαθήματα':'🚫 Δεν έγιναν μαθήματα';
+  btn.classList.toggle('btn-warning',off);
+  btn.classList.toggle('btn-ghost',!off);
+  const ma=document.getElementById('pay-markall-btn');
+  if(ma)ma.disabled=off;
+}
+
+// Toggle "δεν έγιναν μαθήματα" για τον εμφανιζόμενο μήνα
+async function toggleMonthOff(){
+  const scope=payScopeTeam();
+  const targets=scope==='all'?cache.teams:cache.teams.filter(t=>t.id===scope);
+  if(!targets.length){toast('Δεν υπάρχουν δραστηριότητες','⚠️');return;}
+  const off=isMonthOff(activePayMonth, scope);
+  const inactive=!off;
+  if(scope==='all'&&cache.teams.length>1){
+    const names=targets.map(t=>t.name).join(', ');
+    if(!confirm(`${inactive?'Απενεργοποίηση':'Ενεργοποίηση'} ${mLabel(activePayMonth)} για: ${names};`))return;
+  }
+  let failed=[];
+  for(const t of targets){
+    try{
+      await api('POST','/inactive-months',{teamId:t.id,monthKey:activePayMonth,inactive});
+      setInactiveMonthLocal(t.id,activePayMonth,inactive);
+    }catch(e){failed.push(`${t.name}: ${e.message}`);}
+  }
+  renderPayments();refreshDashboard();updateNotifBadge();
+  if(failed.length)toast(failed.join(' · '),'❌');
+  else toast(inactive?`${mLabel(activePayMonth)} — δεν έγιναν μαθήματα`:`${mLabel(activePayMonth)} — έγιναν μαθήματα`,inactive?'🚫':'✅');
+}
+
+// Ενημέρωση cache μετά από επιτυχή αλλαγή στον server
+function setInactiveMonthLocal(teamId, mk, inactive){
+  const cur=cache.inactiveMonths[teamId]||[];
+  if(inactive){ if(!cur.includes(mk))cur.push(mk); cache.inactiveMonths[teamId]=cur; }
+  else cache.inactiveMonths[teamId]=cur.filter(x=>x!==mk);
+}
+
 async function markAllPaid(){
   const tf=document.getElementById('pay-filter-team')?.value||'all';
   const gtf=document.getElementById('global-team')?.value||'all';
-  const targets=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, activePayMonth)&&(gtf==='all'||studentTeamId(s)===gtf)&&(tf==='all'||studentTeamId(s)===tf));
+  const targets=cache.students.filter(s=>countsForMonth(s, activePayMonth)&&(gtf==='all'||studentTeamId(s)===gtf)&&(tf==='all'||studentTeamId(s)===tf));
+  if(!targets.length){toast('Δεν υπάρχουν μαθητές για αυτόν τον μήνα','⚠️');return;}
   if(!confirm(`Σήμανση ${targets.length} μαθητών ως πληρωμένων;`))return;
   const date=toDay();
   try{
@@ -1159,7 +1317,8 @@ async function refreshDashboard(){
   const mk=document.getElementById('dash-month-sel')?.value||currentMK();
   await loadMonthPayments(mk);
   const mo=cache.payments[mk]||{};
-  const activeStudents=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, mk));
+  const monthOff=isMonthOff(mk);
+  const activeStudents=cache.students.filter(s=>countsForMonth(s, mk));
   const total=activeStudents.length;
   const paidList=activeStudents.filter(s=>mo[s.id]?.paid);
   const paidCount=paidList.length;
@@ -1175,7 +1334,7 @@ async function refreshDashboard(){
     <div class="stat-card" style="--accent:var(--orange)">
       <div class="stat-label">Ενεργοί Μαθητές</div>
       <div class="stat-value">${total}</div>
-      <div class="stat-sub">${cache.teams.length} δραστηριότητες · ${cache.students.length-total} ανενεργοί</div>
+      <div class="stat-sub">${monthOff?`🚫 Δεν έγιναν μαθήματα — ${mLabel(mk)}`:`${cache.teams.length} δραστηριότητες · ${cache.students.length-total} ανενεργοί`}</div>
     </div>
     <div class="stat-card" style="--accent:var(--green)">
       <div class="stat-label">Πληρωμένοι</div>
@@ -1218,6 +1377,7 @@ async function refreshDashboard(){
 
   const tbody=document.getElementById('dash-recent');
   if(!cache.students.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="ei">🏀</div><p>Πρόσθεσε μαθητές!</p></div></td></tr>`;return;}
+  if(monthOff){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="ei">🚫</div><p>Δεν έγιναν μαθήματα — ${mLabel(mk)}</p></div></td></tr>`;buildMiniCharts(mk);return;}
   tbody.innerHTML=activeStudents.slice(0,8).map(s=>{
     const pay=mo[s.id];
     return `<tr>
@@ -1239,7 +1399,7 @@ function buildMiniCharts(mk){
   const labels=last6.map(mShort);
   const paid=last6.map(k=>{
     const mo=cache.payments[k]||{};
-    return cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, k)&&mo[s.id]?.paid).length;
+    return cache.students.filter(s=>countsForMonth(s, k)&&mo[s.id]?.paid).length;
   });
 
   if(chartMonthly)chartMonthly.destroy();
@@ -1253,7 +1413,7 @@ function buildMiniCharts(mk){
 
   const mo=cache.payments[mk]||{};
   const teamLabels=cache.teams.map(t=>t.name);
-  const teamPaid=cache.teams.map(t=>cache.students.filter(s=>s.active!==false&&studentTeamId(s)===t.id&&mo[s.id]?.paid).length);
+  const teamPaid=cache.teams.map(t=>cache.students.filter(s=>countsForMonth(s, mk)&&studentTeamId(s)===t.id&&mo[s.id]?.paid).length);
   const teamColors=cache.teams.map(t=>t.color);
 
   if(chartTeams)chartTeams.destroy();
@@ -1284,14 +1444,16 @@ function renderCharts(){
 
   const teacherData=mks.map(mk=>{
     const mo=cache.payments[mk]||{};
-    return students.filter(s=>isRegisteredForMonth(s, mk)&&mo[s.id]?.paid).reduce((a,s)=>a+sTRate(s),0);
+    return students.filter(s=>countsForMonth(s, mk)&&mo[s.id]?.paid).reduce((a,s)=>a+sTRate(s),0);
   });
   const clubData=mks.map(mk=>{
     const mo=cache.payments[mk]||{};
-    return students.filter(s=>isRegisteredForMonth(s, mk)&&mo[s.id]?.paid).reduce((a,s)=>a+sCRate(s),0);
+    return students.filter(s=>countsForMonth(s, mk)&&mo[s.id]?.paid).reduce((a,s)=>a+sCRate(s),0);
   });
+  // null (όχι 0) στους μήνες χωρίς μαθήματα, για κενό στη γραμμή
   const pctData=mks.map(mk=>{
-    const registered=students.filter(s=>isRegisteredForMonth(s, mk));
+    if(isMonthOff(mk, tf))return null;
+    const registered=students.filter(s=>countsForMonth(s, mk));
     if(!registered.length)return 0;
     const mo=cache.payments[mk]||{};
     return Math.round(registered.filter(s=>mo[s.id]?.paid).length/registered.length*100);
@@ -1321,7 +1483,7 @@ function renderCharts(){
   const mk=currentMK();
   const mo=cache.payments[mk]||{};
   const compLabels=cache.teams.map(t=>t.name);
-  const compData=cache.teams.map(t=>cache.students.filter(s=>studentTeamId(s)===t.id&&mo[s.id]?.paid).length);
+  const compData=cache.teams.map(t=>cache.students.filter(s=>countsForMonth(s, mk)&&studentTeamId(s)===t.id&&mo[s.id]?.paid).length);
   const compColors=cache.teams.map(t=>t.color+'bb');
 
   if(chartCompare)chartCompare.destroy();
@@ -1355,7 +1517,8 @@ function renderTeacher(){
   for(let m=0;m<12;m++){
     const mk=mKey(year,m);
     const mo=cache.payments[mk]||{};
-    const students=allStudents.filter(s=>isRegisteredForMonth(s, mk));
+    const off=isMonthOff(mk, tf);
+    const students=allStudents.filter(s=>countsForMonth(s, mk));
     const paidStu=students.filter(s=>mo[s.id]?.paid);
     const pc=paidStu.length;
     const t=paidStu.reduce((a,s)=>a+sTRate(s),0),c=paidStu.reduce((a,s)=>a+sCRate(s),0),tot=paidStu.reduce((a,s)=>a+sRate(s),0);
@@ -1364,7 +1527,7 @@ function renderTeacher(){
     const pct=students.length?Math.round(pc/students.length*100):0;
     const tp=cache.teacherPayments[mk];
     if(tp?.paid){totalTPaid+=t;}else if(t>0){totalTUnpaid+=t;}
-    rows.push({m:MONTHS_EL[m],mk,pc,t,c,tot,pct,tp,isNow:m===new Date().getMonth()&&year===new Date().getFullYear()});
+    rows.push({m:MONTHS_EL[m],mk,pc,t,c,tot,pct,tp,off,isNow:m===new Date().getMonth()&&year===new Date().getFullYear()});
   }
 
   document.getElementById('teach-stats').innerHTML=`
@@ -1391,17 +1554,19 @@ function renderTeacher(){
     </div>`;
 
   document.getElementById('teach-body').innerHTML=rows.map(r=>`
-    <tr ${r.isNow?'style="background:var(--orange-dim)"':''}>
+    <tr ${r.isNow?'style="background:var(--orange-dim)"':r.off?'style="opacity:0.6"':''}>
       <td><strong>${r.m}</strong>${r.isNow?' <span class="badge badge-paid" style="font-size:0.65rem">ΤΩΡΑ</span>':''}</td>
+      ${r.off?`<td colspan="4" style="color:var(--text-muted);font-size:0.82rem">🚫 Δεν έγιναν μαθήματα</td>`:`
       <td style="font-family:'JetBrains Mono'">${r.pc}</td>
       <td style="font-family:'JetBrains Mono';font-weight:600">${r.tot}€</td>
       <td style="font-family:'JetBrains Mono';color:var(--orange);font-weight:600">${r.t}€</td>
-      <td style="font-family:'JetBrains Mono';color:var(--blue)">${r.c}€</td>
+      <td style="font-family:'JetBrains Mono';color:var(--blue)">${r.c}€</td>`}
       <td>
+        ${r.off?'<span style="color:var(--text-muted);font-size:0.8rem">—</span>':`
         <div style="display:flex;align-items:center;gap:0.5rem">
           <div class="stat-progress" style="width:80px"><div class="stat-progress-fill" style="width:${r.pct}%;--accent:var(--green)"></div></div>
           <span style="font-size:0.78rem;color:var(--text-muted)">${r.pct}%</span>
-        </div>
+        </div>`}
       </td>
       <td>
         ${r.t===0?'<span style="color:var(--text-muted);font-size:0.8rem">—</span>':
@@ -1462,6 +1627,7 @@ function renderHistory(){
     Object.entries(mo).forEach(([id,pay])=>{
       if(!pay.paid)return;
       const s=cache.students.find(x=>x.id===id); if(!s)return;
+      if(!isTeamMonthActive(studentTeamId(s), mk))return;
       if(sid!=='all'&&id!==sid)return;
       if(tf!=='all'&&studentTeamId(s)!==tf)return;
       rows.push({mk,s,pay});
@@ -1492,15 +1658,16 @@ async function updateNotifBadge(){
   const mk=currentMK();
   await loadMonthPayments(mk);
   const mo=cache.payments[mk]||{};
-  const count=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, mk)&&!mo[s.id]?.paid).length;
+  const count=cache.students.filter(s=>countsForMonth(s, mk)&&!mo[s.id]?.paid).length;
   document.getElementById('notif-badge').textContent=count>0?` (${count})`:'';
 }
 async function showNotifications(mk){
   if(!mk) mk=currentMK();
   await loadMonthPayments(mk);
   const mo=cache.payments[mk]||{};
-  const unpaid=cache.students.filter(s=>s.active!==false&&isRegisteredForMonth(s, mk)&&!mo[s.id]?.paid);
+  const unpaid=cache.students.filter(s=>countsForMonth(s, mk)&&!mo[s.id]?.paid);
   const el=document.getElementById('notif-content');
+  if(isMonthOff(mk)){el.innerHTML=`<div class="empty-state"><div class="ei">🚫</div><p>Δεν έγιναν μαθήματα — ${mLabel(mk)}</p></div>`;openModal('notifs');return;}
   if(!unpaid.length){el.innerHTML='<div class="empty-state"><div class="ei">🎉</div><p>Όλοι έχουν πληρώσει!</p></div>';openModal('notifs');return;}
   el.innerHTML=`<p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">${mLabel(mk)} — ${unpaid.length} ανεξόφλητοι</p>`+
     `<div style="display:flex;flex-direction:column;gap:0.5rem">`+
@@ -1520,7 +1687,9 @@ function exportCSV(){
   const rows=[['Ονομα','Επωνυμο','Ομαδα','Τηλεφωνο','Κατασταση','Ημερομηνια','Σημειωση','Αμοιβη Δασκαλου','Εσοδα Συλλογου']];
   cache.students.forEach(s=>{
     const t=getTeam(studentTeamId(s)); const pay=mo[s.id];
-    rows.push([s.fname,s.lname,t?.name||'',s.phone||'',pay?.paid?'Πληρωμενος':'Ανεξοφλητος',pay?.date||'',pay?.note||'',pay?.paid?sTRate(s):'',pay?.paid?sCRate(s):'']);
+    const off=!isTeamMonthActive(studentTeamId(s), mk);
+    const status=off?'Δεν εγιναν μαθηματα':(pay?.paid?'Πληρωμενος':'Ανεξοφλητος');
+    rows.push([s.fname,s.lname,t?.name||'',s.phone||'',status,pay?.date||'',pay?.note||'',pay?.paid&&!off?sTRate(s):'',pay?.paid&&!off?sCRate(s):'']);
   });
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
